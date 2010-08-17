@@ -1,0 +1,62 @@
+Data Store Layer(harmonia_ds.erl)
+
+    Description: This layer(module) has I/F with routing layer(harmonia.erl)
+    
+    store(Key, Value)
+        Argments    : Key
+                      Value
+        Return Value: {ok, Cnt}
+                      {ng, 0}
+                      {partial, Cnt}
+        Description : store data with key, and returns the status of result
+
+    get(Key)
+        Argments    : Key
+        Return Value: Data
+                      {error, nodata}
+        Description : return data found first
+
+Table Maintenance Layer(harmonia_tbl.erl)
+
+    
+    make_table(DomainName, TableName, Attributes)
+        Argments    : DomainName::string()
+                      TableName::string()
+                      AttributeList::[{ColumnInfo}]
+                      ColumnInfo::FieldName, InitValue
+                      FieldName::string()
+                      InitValue::any()
+
+        Return Value: {ok, TableId}
+        Description : make table definition on the node, and return the TableId
+
+
+    get_table_info(DomanName, TableName)
+        Argments    : DomainName::string()
+                      TableName::string()
+        Return Value: {ok, [{ColumnInfo}]}
+                      ColumnInfo::FieldName, InitValue
+                      FieldName::string()
+                      InitValue::any()
+
+
+
+Query Parser Layer(harmonia_query.erl)
+
+    
+    qp_make_table(DomainName, TableName, [{Attributes, Default}])
+        Argments    : 
+        Return Value: 
+        Description : wrapper for making table definition on the node,
+                      passing arguments to ds_make_table
+
+    qp_store(DomainName, TableName, [{Attributes, Value}])
+        Argments    : 
+        Return Value: 
+        Description : 
+
+    qp_get(DomainName, TableName, Condition)
+        Argments    : 
+        Return Value: 
+        Description : 
+
