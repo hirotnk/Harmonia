@@ -5,28 +5,31 @@
 
 create(Name) -> supervisor:start_link({local, Name}, ?MODULE, {create, Name}).
 join(Name, RootName) -> supervisor:start_link({local, Name}, ?MODULE, {join, Name, RootName}).
-
 stop(Name) -> exit(whereis(Name), kill).
 
 init({create, Name} = Arg) ->
     %%%%% TODO: later make this part to application:get_env
     error_logger:tty(false),
-    error_logger:logfile({open, "./log.txt"}),
+    error_logger:logfile({open, "./" ++ atom_to_list(Name) ++ "log.txt"}),
     %%%%
+    child_spec(Arg, Name);
 
-    {ok, { {one_for_one, 5, 2000}, % restart taple
-              [                    % child spec list
-               child(harmonia,            Arg, worker), 
-               child(harmonia_stabilizer, Name, worker),
-               child(harmonia_ds, Name, worker)
-              ] } };
 init({join, Name, RootName} = Arg) ->
+    %%%%% TODO: later make this part to application:get_env
+    error_logger:tty(false),
+    error_logger:logfile({open, "./" ++ atom_to_list(Name) ++ "log.txt"}),
+    %%%%
+    child_spec(Arg, Name).
+
+child_spec(Arg, Name) ->
     {ok, { {one_for_one, 5, 2000}, % restart taple
               [                    % child spec list
                child(harmonia,            Arg, worker),
                child(harmonia_stabilizer, Name, worker),
-               child(harmonia_ds, Name, worker)
+               child(harmonia_ds, Name, worker),
+               child(harmonia_table, Name, worker)
               ] } }.
+
 
 child(Module, Arg, Type) ->
   {Module,         % Name

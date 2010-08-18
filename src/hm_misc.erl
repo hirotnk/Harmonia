@@ -93,11 +93,13 @@ get_rand_procname() ->
     % TODO: these name shoud be taken from configuration file
     Pre1 = "harmonia_", 
     Pre2 = "harmonia_ds", 
-    Pre3 = "harmonia_stabilizer", 
+    Pre3 = "harmonia_table", 
+    Pre4 = "harmonia_stabilizer", 
     ProcList = [X || X <- registered(), 
                 lists:prefix(Pre1,atom_to_list(X)) andalso not 
                 lists:prefix(Pre2,atom_to_list(X)) andalso not
-                lists:prefix(Pre3,atom_to_list(X)) ],
+                lists:prefix(Pre3,atom_to_list(X)) andalso not
+                lists:prefix(Pre4,atom_to_list(X)) ],
     case length(ProcList) of 
         0 -> {error, instance};
         N -> {ok, lists:nth(random:uniform(N), ProcList)}
@@ -194,4 +196,14 @@ is_pred_nil(State) ->
         true -> true;
         false -> false
     end.
+
+make_request_list(TargetName, SuccListTarget) ->
+    SuccList = 
+        case length(SuccListTarget) > 0 of
+            true ->
+                SuccTemp = sets:to_list(sets:from_list(SuccListTarget)),
+                [{TargetName, instance} | lists:filter(fun({X,_})-> X =/= TargetName end, SuccTemp)];
+            false ->
+                [{TargetName, instance}]
+        end.
 

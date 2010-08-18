@@ -27,7 +27,7 @@ Table Maintenance Layer(harmonia_tbl.erl)
                       FieldName::string()
                       InitValue::any()
 
-        Return Value: {ok, TableId}
+        Return Value: {ok, {NodeList::list(), FailedList::list()}}
         Description : make table definition on the node, and return the TableId
 
 

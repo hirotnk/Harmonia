@@ -37,6 +37,7 @@ terminate(_Reason, _State) ->
     hm_misc:crypto_stop(),
     ok.
 
+-spec(lookup(Key::atom()) -> atom()).
 lookup(Key) ->
     KeyVector = get_digest(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),

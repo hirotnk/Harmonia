@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start_link/1, stop/1, store/2, store/3, get/1, name/1, table_name/1,
+-export([start_link/1, stop/1, store/2, store/3, get/1, name/1, 
          create_bag/1, get/3, put/3]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
@@ -19,9 +19,7 @@ stop() ->
 stop(RegName) ->
     gen_server:cast(name(RegName), stop).
 
-terminate(_Reason, _State) ->
-    hm_misc:crypto_stop(),
-    ok.
+terminate(_Reason, _State) -> ok.
 
 create_bag(BagName) ->
     store(?hm_global_table, BagName).
@@ -55,18 +53,9 @@ issue_retrieval(BagName, NodeList, Acc) ->
 get(Key) ->
     TargetName = harmonia:lookup(Key),
     SuccListTarget = gen_server:call(TargetName, copy_succlist),
-    SuccList = make_request_list(TargetName, SuccListTarget),
+    SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
 
-make_request_list(TargetName, SuccListTarget) ->
-    SuccList = 
-        case length(SuccListTarget) > 0 of
-            true ->
-                SuccTemp = sets:to_list(sets:from_list(SuccListTarget)),
-                [{TargetName, instance} | lists:filter(fun({X,_})-> X =/= TargetName end, SuccTemp)];
-            false ->
-                [{TargetName, instance}]
-        end.
 
 store(Key, Value) ->
     store_in(?hm_global_table, Key, Value).
@@ -81,7 +70,7 @@ store_in(TableName, Key, Value) ->
 
     % store to all successor list nodes
     SuccListTemp = gen_server:call(RouterName, copy_succlist),
-    SuccList = make_request_list(RouterName, SuccListTemp),
+    SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
     ?debug_p("store:SuccList:[~p] RouterName:[~p].~n", store, [SuccList, RouterName]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
 
@@ -204,6 +193,3 @@ handle_call({get, BagName, Key, Cond={Op,Val}}, _From, {RegName, GlobalTableId})
     {reply, Reply, {RegName, GlobalTableId}}.
 
 name(Name) -> list_to_atom("harmonia_ds_" ++ atom_to_list(Name)).
-
-table_name(Name) -> list_to_atom("table_" ++ atom_to_list(Name)).
-
