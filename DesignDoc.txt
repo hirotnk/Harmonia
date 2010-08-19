@@ -5,13 +5,21 @@ TODO:
 3. write out the test modules
 4. deal with logging
 
+TODO:2010-8-19
+1. modify harmonia_ds, gen_server:get API so that it needs table name
+2. make index store API
+3. make data store API
+4. make data get API using index
+5. make range query API using index
+
 
 TODO:2010-8-16
 TODO:2010-8-17
+TODO:2010-8-18
 OK: 1. make table creation API
 OK: 1. make table info get API
-2. make index store API
-3. make data store API
+UNDER: 2. make index store API
+UNDER: 3. make data store API
 4. make data get API using index
 5. make range query API using index
 

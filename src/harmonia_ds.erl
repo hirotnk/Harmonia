@@ -57,23 +57,93 @@ get(Key) ->
     get_from_succlist(SuccList, Key).
 
 
+%% spec(store(Key::atom(), Value::any() ) -> {ok, Cnt::integer()} | 
+%%                                           {partial, Cnt::integer()}
+%%                                           {ng, Msg::string} |
 store(Key, Value) ->
     store_in(?hm_global_table, Key, Value).
 
-store(TableName, Key, Value) ->
-    store_in(TableName, Key, Value).
+store(DomainName, TableName, KVList) ->
+    % if data store is ok, then store index
+    NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+    case harmonia_table:get_table_info(DomainName, TableName, NodeList) of
+        {ok, AttList} ->
+            case store_data(DomainName, TableName, KVList, AttList) of
+                {ok, _}      -> store_index(DomainName, TableName, KVList, AttList);
+                {error, Msg} -> {error, Msg}
+            end;
+        {error, ErrInfo} -> {error, ErrInfo}
+    end.
+
+
+%% store data of data filed in the following record form:
+%% [DmainName++TableName::atom(), {Fld1, Value}, {Fld2, Value}, ...]
+store_data(DomainName, TableName, KVList, AttList) ->
+    {ok, Row} = extract_kv_tuples(DomainName, TableName, KVList, AttList, false),
+    {ok, Key} = calc_key_from_key_data(DomainName, TableName, KVList, AttList),
+    store(Key, Row).
+
+%% store index data to global_table in the following record form:
+%% {RouterName, [{Fld1, Value}, {Fld2, Value}, ...]}
+%% RouterName indicates the successor from the key DTName.
+%% DTName is hm_global_table
+store_index(DomainName, TableName, KVList, AttList) ->
+    {ok, Row} = extract_kv_tuples(DomainName, TableName, KVList, AttList, true),
+    DTName=list_to_atom(DomainName ++ TableName),
+
+    % store data Key=DTName, Value={RouterName, Ror},
+    % to table DTName on the node RouterName
+    % skipping: store_in(DTName, DTName, {RouterName, Row}).
+    RouterName = harmonia:lookup(DTName),
+    store_in_to(DTName, DTName, {RouterName, Row}, RouterName).
+
+%% retrieve tuples of fields with data
+%% KVFlag: true -> returns key-tuples list
+%% KVFlag: false -> returns data-tuples list
+extract_kv_tuples(DomainName, TableName, KVList, AttList, KVFlag) ->
+    DTName=list_to_atom(DomainName ++ TableName),
+    DataFields = lists:filter( fun({Fname, BoolVal, Init}) -> 
+                                        case BoolVal =:= KVFlag of 
+                                            true -> true; 
+                                            false -> false 
+                                        end 
+                                end, AttList),
+    StoreDataList = 
+        lists:filter(
+            fun({Fname,_}) -> 
+                case lists:keyfind(Fname, 1, DataFields) of 
+                    false -> false;
+                    _ -> true
+                end
+            end, 
+            KVList),
+     {ok, {DTName, StoreDataList}}.
+
+%%
+%% spec(calc_key_from_key_data(DomainName, TableName, KVList, AttList) -> {ok, Key::atom()}
+%% description: generates key from key values
+calc_key_from_key_data(DomainName, TableName, KVList, AttList) ->
+    % retrieve tuples of key fields
+    {ok, {_DTName, KeyList}} = 
+        extract_kv_tuples(DomainName, TableName, KVList, AttList, true),
+
+    % the value of the key fields must be list/string()
+    Key = lists:foldl(fun({_, Data},AccIn) -> AccIn ++ Data end, [], KeyList),
+    {ok, list_to_atom(Key)}.
 
 store_in(TableName, Key, Value) ->
     % lookup the node that is in charge of the key
     RouterName = harmonia:lookup(Key),
     ?debug_p("store:Key:[~p] RouterName:[~p].~n", store, [Key, RouterName]),
+    store_in_to(TableName, Key, Value, RouterName).
 
+
+store_in_to(TableName, Key, Value, RouterName) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call(RouterName, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
     ?debug_p("store:SuccList:[~p] RouterName:[~p].~n", store, [SuccList, RouterName]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
-
 
 % the successor list here includes target node itself, and
 % tail of successor list
@@ -174,14 +244,17 @@ init(RegName) ->
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
-handle_call({store, TableName, Key, Value}, _From, {RegName, GlobalTableId}) ->
-    [{_, TableId}] = GlobalTableId,
-    Ret = ets:insert(TableId, {Key, Value}),
-    {reply, Ret, {RegName, GlobalTableId}};
+handle_call({register_table, {TableName, TableId}}, _From, {RegName, TableList}) ->
+    {reply, {ok, register_table}, {RegName, [{TableName, TableId}|TableList]}};
 
-handle_call({get, Key}, _From, {RegName, GlobalTableId}) ->
-    Reply = ets:lookup(GlobalTableId, Key),
-    {reply, Reply, {RegName, GlobalTableId}};
+handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
+    case lists:keyfind(TableName, 1, TableList) of 
+        false -> 
+            {reply, {error, {store, no_table_found}}, {RegName, TableList}};
+        {TableName, TableId} ->
+            Ret = ets:insert(TableId, {Key, Value}),
+            {reply, Ret, {RegName, TableList}}
+    end;
 
 handle_call({get, TableId, Key}, _From, {RegName, GlobalTableId}) ->
     Reply = ets:lookup(TableId, Key),

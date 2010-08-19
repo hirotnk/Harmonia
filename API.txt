@@ -16,6 +16,32 @@ Data Store Layer(harmonia_ds.erl)
                       {error, nodata}
         Description : return data found first
 
+
+    store(DomainName, TableName, Key, Value)
+        Argments    : Key
+                      Value
+        Return Value: {ok, Cnt}
+                      {ng, 0}
+                      {partial, Cnt}
+        Description : store data with key, and returns the status of result
+
+    store(DomainName, TableName, KeyValueList)
+        Argments    : KeyValueList::[{FldName, Value}]
+                      FldName::string()
+                      Value::any()
+        Return Value: {ok, Cnt}
+                      {ng, 0}
+                      {partial, Cnt}
+        Description : store data with key, and returns the status of result
+                      if all field names in a table are not specified, the default value is set.
+                      the fields spefified as 'Key' cannot be omitted.
+
+    get(Key)
+        Argments    : Key
+        Return Value: Data
+                      {error, nodata}
+        Description : return data found first
+
 Table Maintenance Layer(harmonia_tbl.erl)
 
     
@@ -23,20 +49,24 @@ Table Maintenance Layer(harmonia_tbl.erl)
         Argments    : DomainName::string()
                       TableName::string()
                       AttributeList::[{ColumnInfo}]
-                      ColumnInfo::FieldName, InitValue
+                      ColumnInfo::FieldName, KeyFlg, InitValue
                       FieldName::string()
+                      KeyFlg::bool()
                       InitValue::any()
 
         Return Value: {ok, {NodeList::list(), FailedList::list()}}
         Description : make table definition on the node, and return the TableId
+                      range query can be performed using fields that were specified as KeyFlg=true.
+                      when KeyFlg=true, InitValue is true.
 
 
     get_table_info(DomanName, TableName)
         Argments    : DomainName::string()
                       TableName::string()
         Return Value: {ok, [{ColumnInfo}]}
-                      ColumnInfo::FieldName, InitValue
+                      ColumnInfo::FieldName, KeyFlg, InitValue
                       FieldName::string()
+                      KeyFlg::bool()
                       InitValue::any()
 
 

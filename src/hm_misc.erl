@@ -207,3 +207,17 @@ make_request_list(TargetName, SuccListTarget) ->
                 [{TargetName, instance}]
         end.
 
+make_request_list_from_dt(DomainName, TableName) ->
+    % get atom() of node name
+    NodeName = harmonia:lookup(DTName=list_to_atom(DomainName ++ TableName)),
+    SuccList = gen_server:call(NodeName, copy_succlist),
+    NodeList = make_request_list(NodeName, SuccList).
+
+
+get_digest_from_atom(Key) ->
+    <<Vector:160>> = crypto:sha(atom_to_list(Key)),
+    Vector rem ?max_key_value.
+
+get_digest_from_list(Key) ->
+    <<Vector:160>> = crypto:sha(Key),
+    Vector rem ?max_key_value.

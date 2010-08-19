@@ -39,7 +39,7 @@ terminate(_Reason, _State) ->
 
 -spec(lookup(Key::atom()) -> atom()).
 lookup(Key) ->
-    KeyVector = get_digest(Key),
+    KeyVector = hm_misc:get_digest_from_atom(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
     {SuccName, _} = gen_server:call(RegName, {find_successor, KeyVector, nil}),
     SuccName.
@@ -51,7 +51,7 @@ state_info(RegName, NodeName) ->
 
 init({Op, NodeName}) ->
     hm_misc:crypto_start(),
-    NodeVector = get_digest(NodeName),
+    NodeVector = hm_misc:get_digest_from_atom(NodeName),
     State = #state{node_name = NodeName, node_vector = NodeVector},
     case Op of 
         create -> 
@@ -233,7 +233,4 @@ ask_closest_predecessor(State, NodeVector) ->
     end,
     NewSucc.
 
-get_digest(Key) ->
-    <<Vector:160>> = crypto:sha(atom_to_list(Key)),
-    Vector rem ?max_key_value.
 
