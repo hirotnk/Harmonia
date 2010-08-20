@@ -6,6 +6,7 @@
          create_bag/1, get/3, put/3]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
+
 -include("harmonia.hrl").
 -define(hm_global_table, hm_table_global).
 
@@ -64,12 +65,20 @@ store(Key, Value) ->
     store_in(?hm_global_table, Key, Value).
 
 store(DomainName, TableName, KVList) ->
-    % if data store is ok, then store index
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+
+    {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
     case harmonia_table:get_table_info(DomainName, TableName, NodeList) of
         {ok, AttList} ->
-            case store_data(DomainName, TableName, KVList, AttList) of
-                {ok, _}      -> store_index(DomainName, TableName, KVList, AttList);
+            DTName = list_to_atom(DomainName++TableName),
+            {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
+            DataTableNode = harmonia:lookup(Key), % data record is stored on this node in ?hm_global_table
+            case store_data(DTName, DataTableNode, KVList) of
+                {ok, _}      -> 
+                    store_index(DTName,
+                                DataTableNode,  
+                                IndexTableNode,
+                                KVList, AttList);
                 {error, Msg} -> {error, Msg}
             end;
         {error, ErrInfo} -> {error, ErrInfo}
@@ -77,37 +86,34 @@ store(DomainName, TableName, KVList) ->
 
 
 %% store data of data filed in the following record form:
-%% [DmainName++TableName::atom(), {Fld1, Value}, {Fld2, Value}, ...]
-store_data(DomainName, TableName, KVList, AttList) ->
-    {ok, Row} = extract_kv_tuples(DomainName, TableName, KVList, AttList, false),
-    {ok, Key} = calc_key_from_key_data(DomainName, TableName, KVList, AttList),
-    store(Key, Row).
+%% Table: ?hm_global_table
+%% Row: {DmainName++TableName::atom(), [{Fld1, Value}, {Fld2, Value}, ...]}
+%% Key : calculate from key fields' data
+%% Target Nodes: calculate from Key
+store_data(DTName, DataTableNode, KVList) ->
+    store_in_to(DataTableNode, ?hm_global_table, {DTName, KVList}).
 
 %% store index data to global_table in the following record form:
-%% {RouterName, [{Fld1, Value}, {Fld2, Value}, ...]}
 %% RouterName indicates the successor from the key DTName.
-%% DTName is hm_global_table
-store_index(DomainName, TableName, KVList, AttList) ->
-    {ok, Row} = extract_kv_tuples(DomainName, TableName, KVList, AttList, true),
-    DTName=list_to_atom(DomainName ++ TableName),
-
-    % store data Key=DTName, Value={RouterName, Ror},
-    % to table DTName on the node RouterName
-    % skipping: store_in(DTName, DTName, {RouterName, Row}).
-    RouterName = harmonia:lookup(DTName),
-    store_in_to(DTName, DTName, {RouterName, Row}, RouterName).
+%% Data: {RouterName, [{Fld1, Value}, {Fld2, Value}, ...]}
+%% Table: DomainName ++ TableName
+store_index(DTNameTable, DataTableNode, IndexTableNode, KVList, AttList) ->
+    {ok, Row} = extract_kv_tuples(DTNameTable, KVList, AttList, true),
+    store_in_to(IndexTableNode, DTNameTable, {DataTableNode, Row}).
 
 %% retrieve tuples of fields with data
 %% KVFlag: true -> returns key-tuples list
 %% KVFlag: false -> returns data-tuples list
-extract_kv_tuples(DomainName, TableName, KVList, AttList, KVFlag) ->
-    DTName=list_to_atom(DomainName ++ TableName),
-    DataFields = lists:filter( fun({Fname, BoolVal, Init}) -> 
-                                        case BoolVal =:= KVFlag of 
-                                            true -> true; 
-                                            false -> false 
-                                        end 
-                                end, AttList),
+extract_kv_tuples(DTName, KVList, AttList, KVFlag) ->
+    DataFields = 
+        lists:filter( 
+            fun({Fname, BoolVal, Init}) -> 
+                case BoolVal =:= KVFlag of 
+                    true -> true; 
+                    false -> false 
+                end 
+            end, 
+            AttList),
     StoreDataList = 
         lists:filter(
             fun({Fname,_}) -> 
@@ -117,28 +123,33 @@ extract_kv_tuples(DomainName, TableName, KVList, AttList, KVFlag) ->
                 end
             end, 
             KVList),
-     {ok, {DTName, StoreDataList}}.
+     {ok, StoreDataList}.
 
 %%
 %% spec(calc_key_from_key_data(DomainName, TableName, KVList, AttList) -> {ok, Key::atom()}
 %% description: generates key from key values
-calc_key_from_key_data(DomainName, TableName, KVList, AttList) ->
+calc_key_from_key_data(DTName, KVList, AttList) ->
     % retrieve tuples of key fields
-    {ok, {_DTName, KeyList}} = 
-        extract_kv_tuples(DomainName, TableName, KVList, AttList, true),
+    {ok, KeyList} = 
+        extract_kv_tuples(DTName, KVList, AttList, true),
 
     % the value of the key fields must be list/string()
-    Key = lists:foldl(fun({_, Data},AccIn) -> AccIn ++ Data end, [], KeyList),
-    {ok, list_to_atom(Key)}.
+    Key = lists:foldl(fun
+                        ({_, Data},AccIn) -> 
+                            case is_list(Data) of
+                                true -> AccIn ++ Data ;
+                                false -> AccIn ++ atom_to_list(Data)
+                            end
+                      end, 
+                      [], KeyList),
+    {ok, list_to_atom(atom_to_list(DTName)++Key)}.
 
 store_in(TableName, Key, Value) ->
-    % lookup the node that is in charge of the key
     RouterName = harmonia:lookup(Key),
-    ?debug_p("store:Key:[~p] RouterName:[~p].~n", store, [Key, RouterName]),
-    store_in_to(TableName, Key, Value, RouterName).
+    store_in_to(RouterName, TableName, {Key, Value}).
 
 
-store_in_to(TableName, Key, Value, RouterName) ->
+store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call(RouterName, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
@@ -238,13 +249,14 @@ get_from_succlist(Succlist, BagName, Key, Cond) ->
     end.
 
 init(RegName) ->
-    GlobalTableId = ets:new(?hm_global_table, [ordered_set]),
+    GlobalTableId = ets:new(?hm_global_table, [ordered_set, public]),
     {ok, {RegName, [{?hm_global_table, GlobalTableId}]}}.
 
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_call({register_table, {TableName, TableId}}, _From, {RegName, TableList}) ->
+    ?debug_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, {TableName, TableId}]),
     {reply, {ok, register_table}, {RegName, [{TableName, TableId}|TableList]}};
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
