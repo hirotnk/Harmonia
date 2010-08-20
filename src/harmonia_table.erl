@@ -74,7 +74,7 @@ handle_call({get_table_info, DomainName, TableName}, _From, {RegName, TblList}=S
 
 handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblList}) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    TableId = ets:new(DTName, [ordered_set]),
-    {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TableName]}}.
+    TableId = ets:new(DTName, [ordered_set, public]),
+    {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
 
 name(Name) -> list_to_atom("harmonia_table_" ++ atom_to_list(Name)).
