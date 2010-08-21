@@ -50,9 +50,10 @@ parse_factor([{left_paren, _} | Tokens], []) ->
 parse_factor(Tokens, []) -> 
     {Term, [RelOp|Tokens2]} = parse_term(Tokens, []),
     case RelOp of 
-        {relational_operator, _} -> 
+        {relational_operator, Op} -> 
             {Term2, Tokens3} = parse_term(Tokens2, []),
-            {{term, {relational_operator, RelOp}, Term, Term2}, Tokens3};
+            AtomOp = list_to_atom(Op),
+            {{AtomOp, Term, Term2}, Tokens3};
 
         _ -> {error, parse_factor, Tokens2}
     end.
@@ -61,25 +62,33 @@ parse_factor(Tokens, []) ->
 parse_term([{identifier,_}=Tble,{dot_op, _},{identifier, _}=Fld|Tokens], []) -> 
     {{table_field, Tble,  Fld}, Tokens};
 parse_term([{identifier,Val}|Tokens], []) -> 
-    {{string, Val}, Tokens};
-parse_term([{number,Val}|Tokens], []) -> 
-    {{number, Val}, Tokens}.
+    {Val, Tokens};
+parse_term([{const,Val}|Tokens], []) -> 
+    {{const, Val}, Tokens}.
 
 
 
-scan(Query)->
-    scan(Query, [], []).
-
-scan([],  Cur, Tokens) -> 
+scan(Query, AttList)->
+    Tokens = scan(Query, [], []),
     lists:map(fun
                   ({identifier, String}) -> 
-                      {identifier, lists:reverse(String)};
-                  ({number, String}) -> 
-                      {number, lists:reverse(String)};
+                      Token = lists:reverse(String),
+
+                      case find_nth(Token, AttList) of 
+                          {no_field, _} -> 
+                              {identifier, Token};
+                          N -> 
+                              {identifier, list_to_atom("$" ++ integer_to_list(N))}
+                      end;
+
+                  ({const, String}) -> 
+                      {const, list_to_integer(lists:reverse(String))};
                   ({Type, String}) -> 
                       {Type, String}
               end,
-              Tokens++Cur);
+              Tokens).
+
+scan([],  Cur, Tokens) -> Tokens ++ Cur;
 
 scan(" " ++ Query, [], Tokens) ->
     scan(Query, [], Tokens);
@@ -111,24 +120,24 @@ scan("." ++ Query, Cur, Tokens) ->
 scan("(" ++ Query, Cur, Tokens) ->
     scan(Query, [], Tokens++Cur++[{left_paren, "("}]);
 scan(")" ++ Query, Cur, Tokens) ->
-    scan(Query, [], Tokens++Cur++[{left_paren, ")"}]);
+    scan(Query, [], Tokens++Cur++[{right_paren, ")"}]);
 
 scan([Char|Query], [], Tokens) ->
     case char_type(Char) of 
         character ->
             scan(Query, [{identifier, [Char]}], Tokens);
         number ->
-            scan(Query, [{number, [Char]}], Tokens);
+            scan(Query, [{const, [Char]}], Tokens);
         _ ->
             error
     end;
 
 scan([Char|Query], [{identifier, String}], Tokens) ->
     scan(Query, [{identifier, [Char|String]}], Tokens);
-scan([Char|Query], [{number, String}], Tokens) ->
+scan([Char|Query], [{const, String}], Tokens) ->
     case char_type(Char) of 
         number ->
-            scan(Query, [{number, [Char|String]}], Tokens);
+            scan(Query, [{const, [Char|String]}], Tokens);
         _ -> error
     end.
 
@@ -154,4 +163,11 @@ eval(Op) ->
     io:format("evaluating: ~p ~n", [Op]),
     {result, Op}.
     
-
+find_nth(Token, AttList) -> find_nth_in(Token, AttList, 1).
+find_nth_in(Token, [], _N) -> {no_field, Token};
+find_nth_in(Token, [{FieldName, _, _} | AttList], N) ->
+    case Token =:= FieldName of 
+        true -> N;
+        false -> 
+            find_nth_in(Token, AttList, N+1)
+    end.
