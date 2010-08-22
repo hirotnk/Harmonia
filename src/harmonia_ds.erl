@@ -2,7 +2,7 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start_link/1, stop/1, store/2, store/3, get/1, name/1, get/3]).
+-export([start_link/1, stop/1, store/2, store/3, get/1, name/1, get/3, fun_for_index/2, fun_for_data/2]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
@@ -39,9 +39,22 @@ get(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
     case lookup_index_table(NodeList, DTName, Cond) of
-        {ok, DataNodeList} -> DataNodeList;
+        {ok, DataNodeList, AttList, [MS]} ->
+
+            {_, Flist} = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
+            case lookup_data_table(DataNodeList, DTName, Flist, MS, []) of
+                {ok, RecordList} -> {ok, RecordList};
+                {error, Msg} -> {error, Msg} 
+            end;
         {error, Msg} -> {error, Msg}
     end.
+
+make_select_cond(AttList, Cond, Fun) ->
+    {_, FlistModified} = 
+            lists:foldl(Fun,
+            {1,[]}, AttList),
+    MS = hm_qp:parse(hm_qp:scan(Cond, AttList)),
+    {ok, FlistModified, MS}.
 
 lookup_index_table(NodeList, DTNameTable, Cond) ->
     case hm_misc:get_first_alive_entry(NodeList) of 
@@ -51,40 +64,45 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
             IndexNodeTable = harmonia_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
             case gen_server:call(IndexNodeTable, {get_table_info, DTNameTable}) of
                 {ok, Tid, AttList} ->
+                    Fun = fun ?MODULE:fun_for_index/2,
+                    {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun),
+                    ?debug_p("lookup_index_table:index All:[~p].~n", none, [[{{'$1', FlistModified}, MS, ['$$']}]]),
                     {ok, RowList} = 
-                        gen_server:call(IndexNodeDs, {select_table, DTNameTable, Tid, AttList, Cond}),
-                    ?debug_p("lookup_index_table:RowList:[~p].~n", none, [RowList]),
+                        gen_server:call(IndexNodeDs, {select_table, Tid, FlistModified, MS}),
                     UniqNodeList = 
-                        sets:to_list(sets:from_list(
-                        lists:foldl(
-                            fun
-                                (Row, AccIn) ->
-                                    AccIn ++ [hd(Row)]
-                            end, [], RowList))),
-                    % ok, let's get our data...
-                    case lookup_data_table(UniqNodeList, DTNameTable, []) of
-                        {ok, RecordList} -> {ok, RecordList};
-                        {error, Msg} -> {error, Msg} 
-                    end;
+                        sets:to_list(
+                            sets:from_list(
+                                lists:foldl(fun (Row, AccIn) -> AccIn ++ [hd(Row)] end, [], RowList))),
+                    ?debug_p("lookup_index_table:UniqNodeList:[~p].~n", none, [UniqNodeList]),
+                    {ok, UniqNodeList, AttList, MS};
                 {error, Msg} -> 
                     {error, Msg}
             end
     end.
 
-lookup_data_table([], DTNameTable, RecList) -> {ok, RecList};
-lookup_data_table(UniqNodeList, DTNameTable, RecList) ->
+fun_for_index({Fname, Bool, _},{N,FList}) ->
+    case Bool =:= true of
+        true -> {N+1, FList ++ [list_to_atom("$" ++ integer_to_list(N+1))]};
+        false -> {N, FList}
+    end.
+
+fun_for_data({Fname, _, _},{N,Flist}) -> {N+1, Flist ++ [list_to_atom("$" ++ integer_to_list(N+1))]}.
+
+lookup_data_table([], DTNameTable, FlistModified, MS, RecList) -> {ok, RecList};
+lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     NodeName = hd(UniqNodeList),
     DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
+
     case hm_misc:is_alive(DataNodeName) of
         false -> 
             % TODO: make this case partial error: {error, no_node_available};
-            lookup_data_table(tl(UniqNodeList), DTNameTable, RecList);
+            lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, RecList);
         true ->
             {ok, RowList} = 
-                gen_server:call(DataNodeName, {select_table, ?hm_global_table, DTNameTable}),
+                gen_server:call(DataNodeName, {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}),
             ?debug_p("lookup_index_table:RowList:[~p].~n", none, [RowList]),
             NewRecList = RecList ++ RowList,
-            lookup_data_table(tl(UniqNodeList), DTNameTable, NewRecList)
+            lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, NewRecList)
     end.
 
 store(DomainName, TableName, KVList) ->
@@ -118,7 +136,8 @@ store(DomainName, TableName, KVList) ->
 %% Target Nodes: calculate from Key
 %%
 store_data(DTName, DataTableNode, KVList) ->
-    store_in_to(DataTableNode, ?hm_global_table, {DTName, KVList}).
+    VList = lists:map(fun({Fld,Val}) -> Val end, KVList),
+    store_in_to(DataTableNode, ?hm_global_table, {DTName, VList}).
 %%
 %% @spec store_index(DTName::atom(), DataTableNode::atom(), 
 %%                   IndexTableNode::atom(), KVList::list(), AttList::list()) ->
@@ -298,7 +317,7 @@ get_from_succlist(Succlist, BagName, Key, Cond) ->
     end.
 
 init(RegName) ->
-    GlobalTableId = ets:new(?hm_global_table, [ordered_set, public]),
+    GlobalTableId = ets:new(?hm_global_table, [duplicate_bag, public]),
     {ok, {RegName, [{?hm_global_table, GlobalTableId}]}}.
 
 handle_cast(stop, State) ->
@@ -312,30 +331,17 @@ handle_call({get_table_info, DTName}, _From, {RegName, TableList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TableList),
     {reply, ReplyData, State};
 
-handle_call({select_table, ?hm_global_table, DTName}, _From, {RegName, TableList}=State) ->
+handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {RegName, TableList}=State) ->
     case lists:keyfind(?hm_global_table, 1, TableList) of
         false -> {reply, {nb, no_global_table}, State};
         {_,Tid} ->
-            % ets:select(32788, [{{'$1','$2'},[{'==','$1','Domain1Tbl2'}],['$$']}]).
-            Reply = ets:select(Tid, [{{'$1', '$2'},[{'==','$1',DTName}],['$$']}]),
+            % ets:select(16400, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
+            Reply = ets:select(Tid, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}],['$$']}]),
             {reply, {ok, Reply}, State}
     end;
 
-handle_call({select_table, DTName, Tid, AttList, Cond}, _From, {RegName, TableList}=State) ->
+handle_call({select_table, Tid, FlistModified, MS}, _From, {RegName, TableList}=State) ->
 
-    ?debug_p("select_table:TableList:[~p].~n", RegName, [TableList]),
-    {_, FlistModified} = 
-            lists:foldl(fun
-                ({Fname, Bool, _},{N,FList}) ->
-                    case Bool =:= true of
-                        true -> {N+1, FList ++ [list_to_atom("$" ++ integer_to_list(N+1))]};
-                        false -> {N, FList}
-                    end
-            end, {1,[]}, AttList),
-    ?debug_p("select_table:FlistModified:[~p].~n", RegName, [FlistModified]),
-    MS = hm_qp:parse(hm_qp:scan(Cond, AttList)),
-    ?debug_p("select_table:MS:[~p].~n", RegName, [MS]),
-    ?debug_p("select_table:All:[~p].~n", RegName, [[{{'$1', FlistModified}, MS, ['$$']}]]),
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, Reply}, State};
 
