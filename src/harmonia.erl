@@ -153,10 +153,8 @@ handle_call({find_successor, NodeVector, CurrentFix}, From, State) ->
     % when inquired by other, 'CurrentFix' should not be modified
     NewState = 
         case CurrentFix of
-            nil -> % inquired by other
-                State;
-            _   -> % inquired by self-stabilizer
-                State#state{current_fix = CurrentFix}
+            nil -> State; % inquired by other, no change to current_fix
+            _   -> State#state{current_fix = CurrentFix} % inquired by self-stabilizer
         end,
 
     RetVal = find_successor_in(NodeVector, State),
@@ -181,11 +179,6 @@ handle_call({find_successor_with_succlist, NodeVector, CurrentFix}, From, State)
             State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
 
     return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, NewState);
-
-handle_call(build_succlist, _From, State) ->
-    SuccList = [{State#state.node_name, State#state.node_vector} | 
-                lists:sublist(State#state.finger, 1, ?succ_list_len - 1)],
-    {reply, SuccList, State};
 
 handle_call(copy_succlist, _From, State) ->
     ?debug_p("copy_succlist:succlist:[~p].~n", State#state.node_name, [State#state.succlist]),

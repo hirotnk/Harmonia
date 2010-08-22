@@ -6,9 +6,15 @@ TODO:
 4. deal with logging
 5. add data migration process: harmonia_data_migrate.erl
 
+TODO:2010-8-22
+1. Check all codes and make it clean and clear
+2. complete get API
+3. clean code
+
 TODO:2010-8-19
 1. modify harmonia_ds, gen_server:get API so that it needs table name
 1'. check crude store API(does it need table info? using index?)
+
 2. make index store API
 3. make data store API
 4. make data get API using index

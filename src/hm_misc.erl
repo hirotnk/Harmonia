@@ -209,8 +209,10 @@ make_request_list(TargetName, SuccListTarget) ->
 
 make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name
+    %% TODO: this two line should use find_successor_with_succlist ? for performance
     NodeName = harmonia:lookup(DTName=list_to_atom(DomainName ++ TableName)),
     SuccList = gen_server:call(NodeName, copy_succlist),
+
     NodeList = make_request_list(NodeName, SuccList).
 
 

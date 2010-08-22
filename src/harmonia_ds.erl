@@ -2,12 +2,11 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start_link/1, stop/1, store/2, store/3, get/1, name/1, 
-         create_bag/1, get/3, put/3]).
+-export([start_link/1, stop/1, store/2, store/3, get/1, name/1, get/3]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
-
 -include("harmonia.hrl").
+-define(MODULE_NAME, atom_to_list(?MODULE)).
 -define(hm_global_table, hm_table_global).
 
 
@@ -22,35 +21,6 @@ stop(RegName) ->
 
 terminate(_Reason, _State) -> ok.
 
-create_bag(BagName) ->
-    store(?hm_global_table, BagName).
-
-put(BagName, Key, Value) ->
-    NodeName = harmonia:lookup(Key),
-    store(BagName, BagName, {Key, NodeName}),
-    store(BagName, Key, {Key, Value}).
-
-%% get(BagName, Key, Cond) ->
-%%     TargetName = harmonia:lookup(BagName),
-%%     SuccList = gen_server:call(TargetName, copy_succlist),
-%% 
-%%     % return list of { key, nodename }
-%%     NodeList = get_from_succlist(SuccList, BagName, Key, Cond), 
-%% 
-%%     % ask every node in parallel
-%%     issue_retrieval(BagName, NodeList, []).
-
-
-issue_retrieval(BagName, [], Acc) -> Acc;
-issue_retrieval(BagName, NodeList, Acc) ->
-    {Key, NodeName} = hd(NodeList),
-
-    SuccList = gen_server:call(NodeName, copy_succlist),
-    Result = get_from_succlist(SuccList, BagName, Key),
-    issue_retrieval(BagName, tl(NodeList), [Result|Acc]).
-
-
-
 get(Key) ->
     TargetName = harmonia:lookup(Key),
     SuccListTarget = gen_server:call(TargetName, copy_succlist),
@@ -58,7 +28,7 @@ get(Key) ->
     get_from_succlist(SuccList, Key).
 
 
-%% spec(store(Key::atom(), Value::any() ) -> {ok, Cnt::integer()} | 
+%% @spec(store(Key::atom(), Value::any() ) -> {ok, Cnt::integer()} | 
 %%                                           {partial, Cnt::integer()}
 %%                                           {ng, Msg::string} |
 store(Key, Value) ->
@@ -69,12 +39,7 @@ get(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
     case lookup_index_table(NodeList, DTName, Cond) of
-        Any -> Any;
-        % {ok, DataNodeList} -> 
-            % case lookup_data_table(DataNodeList, DTName, Cond) of
-            %     {ok, RecordList} -> {ok, RecordList};
-            %     {error, Msg} -> {error, Msg} 
-            % end;
+        {ok, DataNodeList} -> DataNodeList;
         {error, Msg} -> {error, Msg}
     end.
 
@@ -85,12 +50,41 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
             IndexNodeDs = name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
             IndexNodeTable = harmonia_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
             case gen_server:call(IndexNodeTable, {get_table_info, DTNameTable}) of
-                
                 {ok, Tid, AttList} ->
-                    gen_server:call(IndexNodeDs, {select_table, DTNameTable, Tid, AttList, Cond});
+                    {ok, RowList} = 
+                        gen_server:call(IndexNodeDs, {select_table, DTNameTable, Tid, AttList, Cond}),
+                    ?debug_p("lookup_index_table:RowList:[~p].~n", none, [RowList]),
+                    UniqNodeList = 
+                        sets:to_list(sets:from_list(
+                        lists:foldl(
+                            fun
+                                (Row, AccIn) ->
+                                    AccIn ++ [hd(Row)]
+                            end, [], RowList))),
+                    % ok, let's get our data...
+                    case lookup_data_table(UniqNodeList, DTNameTable, []) of
+                        {ok, RecordList} -> {ok, RecordList};
+                        {error, Msg} -> {error, Msg} 
+                    end;
                 {error, Msg} -> 
                     {error, Msg}
             end
+    end.
+
+lookup_data_table([], DTNameTable, RecList) -> {ok, RecList};
+lookup_data_table(UniqNodeList, DTNameTable, RecList) ->
+    NodeName = hd(UniqNodeList),
+    DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
+    case hm_misc:is_alive(DataNodeName) of
+        false -> 
+            % TODO: make this case partial error: {error, no_node_available};
+            lookup_data_table(tl(UniqNodeList), DTNameTable, RecList);
+        true ->
+            {ok, RowList} = 
+                gen_server:call(DataNodeName, {select_table, ?hm_global_table, DTNameTable}),
+            ?debug_p("lookup_index_table:RowList:[~p].~n", none, [RowList]),
+            NewRecList = RecList ++ RowList,
+            lookup_data_table(tl(UniqNodeList), DTNameTable, NewRecList)
     end.
 
 store(DomainName, TableName, KVList) ->
@@ -104,24 +98,35 @@ store(DomainName, TableName, KVList) ->
             DataTableNode = harmonia:lookup(Key), % data record is stored on this node in ?hm_global_table table
             case store_data(DTName, DataTableNode, KVList) of
                 {ok, _}      -> 
-                    store_index(DTName,
-                                DataTableNode,
-                                IndexTableNode,
-                                KVList, AttList);
+                    store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
                 {error, Msg} -> {error, Msg}
             end;
         {error, ErrInfo} -> {error, ErrInfo}
     end.
 
 
+%%
+%% @spec store_sta(DTName::atom(), DataTableNode::atom(), KVList::list()) ->
+%%                                           {ok, Cnt::integer()} | 
+%%                                           {partial, Cnt::integer()}
+%%                                           {ng, Msg::string} |
+%%                 
+%% @doc
 %% store data of data filed in the following record form:
-%% Table: ?hm_global_table
 %% Row: {DmainName++TableName::atom(), [{Fld1, Value}, {Fld2, Value}, ...]}
 %% Key : calculate from key fields' data
 %% Target Nodes: calculate from Key
+%%
 store_data(DTName, DataTableNode, KVList) ->
     store_in_to(DataTableNode, ?hm_global_table, {DTName, KVList}).
-
+%%
+%% @spec store_index(DTName::atom(), DataTableNode::atom(), 
+%%                   IndexTableNode::atom(), KVList::list(), AttList::list()) ->
+%%                                           {ok, Cnt::integer()} | 
+%%                                           {partial, Cnt::integer()}
+%%                                           {ng, Msg::string} |
+%
+%% @doc 
 %% store index data to global_table in the following record form:
 %% RouterName indicates the successor from the key DTName.
 %% Data: {RouterName, [{Fld1, Value}, {Fld2, Value}, ...]}
@@ -161,8 +166,13 @@ extract_kv_tuples(DTName, KVList, AttList, KVFlag) ->
      {ok, StoreDataList}.
 
 %%
-%% spec(calc_key_from_key_data(DomainName, TableName, KVList, AttList) -> {ok, Key::atom()}
-%% description: generates key from key values
+%% @spec(calc_key_from_key_data(DomainName, TableName, KVList, AttList) -> {ok, Key::atom()}
+%% @doc generates key from DTName and key values
+%% @TODO: the type of data in key fields are now confined to following:
+%%        may need to figure out more flexibility
+%%        - string()
+%%        - atom()
+%%        - integer()
 calc_key_from_key_data(DTName, KVList, AttList) ->
     % retrieve tuples of key fields
     {ok, KeyList} = 
@@ -239,14 +249,12 @@ get_from_succlist(Succlist, Key) ->
     case whereis(TargetName) of
         undefined ->
             get_from_succlist(tl(Succlist), Key);
-        _ ->
+        _Any ->
             Result = gen_server:call(TargetName, {get, Key}),
             ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of
-                0 -> 
-                    get_from_succlist(tl(Succlist), Key);
-                _ -> 
-                    Result
+                0 -> get_from_succlist(tl(Succlist), Key);
+                _Any -> Result
             end
     end.
 
@@ -304,6 +312,15 @@ handle_call({get_table_info, DTName}, _From, {RegName, TableList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TableList),
     {reply, ReplyData, State};
 
+handle_call({select_table, ?hm_global_table, DTName}, _From, {RegName, TableList}=State) ->
+    case lists:keyfind(?hm_global_table, 1, TableList) of
+        false -> {reply, {nb, no_global_table}, State};
+        {_,Tid} ->
+            % ets:select(32788, [{{'$1','$2'},[{'==','$1','Domain1Tbl2'}],['$$']}]).
+            Reply = ets:select(Tid, [{{'$1', '$2'},[{'==','$1',DTName}],['$$']}]),
+            {reply, {ok, Reply}, State}
+    end;
+
 handle_call({select_table, DTName, Tid, AttList, Cond}, _From, {RegName, TableList}=State) ->
 
     ?debug_p("select_table:TableList:[~p].~n", RegName, [TableList]),
@@ -320,7 +337,7 @@ handle_call({select_table, DTName, Tid, AttList, Cond}, _From, {RegName, TableLi
     ?debug_p("select_table:MS:[~p].~n", RegName, [MS]),
     ?debug_p("select_table:All:[~p].~n", RegName, [[{{'$1', FlistModified}, MS, ['$$']}]]),
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
-    {reply, Reply, State};
+    {reply, {ok, Reply}, State};
 
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
@@ -341,5 +358,5 @@ handle_call({get, TableName, Key, {Op,Val}=Cond}, _From, {RegName, GlobalTableId
     Reply = ets:select(TableName,[{ {'$1','$2'}, [ { Op, '$1', Val } ],['$_'] }]),
     {reply, Reply, {RegName, GlobalTableId}}.
 
-name(Name) -> list_to_atom("harmonia_ds_" ++ atom_to_list(Name)).
+name(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ atom_to_list(Name)).
 
