@@ -65,16 +65,16 @@ handle_cast(stop, State) ->
 
 handle_call({get_table_info, DomainName, TableName}, _From, {RegName, TblList}=State) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    ReplyData = 
-        case lists:keyfind(DTName, 2, TblList) of
-            false -> {error, no_table};
-            {_Tid, DTName, AttList} -> {ok, AttList}
-        end,
+    ReplyData = hm_misc:search_table_attlist(DTName, TblList),
+    {reply, ReplyData, State};
+
+handle_call({get_table_info, DTName}, _From, {RegName, TblList}=State) ->
+    ReplyData = hm_misc:search_table_attlist(DTName, TblList),
     {reply, ReplyData, State};
 
 handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblList}) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    TableId = ets:new(DTName, [ordered_set, public]),
+    TableId = ets:new(DTName, [duplicate_bag, public]),
     {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
 
 name(Name) -> list_to_atom("harmonia_table_" ++ atom_to_list(Name)).

@@ -17,7 +17,8 @@ SOURCE = harmonia_ds.erl \
 	harmonia.erl \
 	harmonia_stabilizer.erl \
 	harmonia_sup.erl \
-	hm_misc.erl
+	hm_misc.erl \
+	hm_qp.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
 CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 

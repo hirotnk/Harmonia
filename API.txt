@@ -58,6 +58,7 @@ Table Maintenance Layer(harmonia_tbl.erl)
         Description : make table definition on the node, and return the TableId
                       range query can be performed using fields that were specified as KeyFlg=true.
                       when KeyFlg=true, InitValue is true.
+        Example     : harmonia_table:make_table("Domain1", "Tbl1", [{"Fld1",true, true},{"Fld2",false, []}]).
 
 
     get_table_info(DomanName, TableName)

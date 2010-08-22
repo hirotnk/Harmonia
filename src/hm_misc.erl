@@ -221,3 +221,9 @@ get_digest_from_atom(Key) ->
 get_digest_from_list(Key) ->
     <<Vector:160>> = crypto:sha(Key),
     Vector rem ?max_key_value.
+
+search_table_attlist(DTName, TblList) ->
+    case lists:keyfind(DTName, 2, TblList) of
+        false -> {error, no_table};
+        {Tid, DTName, AttList} -> {ok, Tid, AttList}
+    end.

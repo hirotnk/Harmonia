@@ -16,13 +16,10 @@
 
 -define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
 -define(NUMBERS, "0123456789").
--define(RESERVED_WORDS, ["or","and"]).
--define(RELATIONAL_OPERATORS, ["<",">","==","!=","<=",">="]).
--define(PAREN, "()"]).
 
 parse(Tokens) ->
     {Result, []} = parse_sts(Tokens, []),
-    Result.
+    [Result].
 
 parse_sts(Tokens, []) ->
     case parse_exp(Tokens, []) of
@@ -76,13 +73,14 @@ scan(Query, AttList)->
 
                       case find_nth(Token, AttList) of 
                           {no_field, _} -> 
-                              {identifier, Token};
+                              {identifier, list_to_atom(Token)};
                           N -> 
-                              {identifier, list_to_atom("$" ++ integer_to_list(N))}
+                              {identifier, list_to_atom("$" ++ integer_to_list(N+1))}
                       end;
 
                   ({const, String}) -> 
                       {const, list_to_integer(lists:reverse(String))};
+
                   ({Type, String}) -> 
                       {Type, String}
               end,
