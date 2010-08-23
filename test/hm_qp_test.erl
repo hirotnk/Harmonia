@@ -14,12 +14,20 @@
 -include_lib("eunit/include/eunit.hrl").
 
 scan_test_() -> [
+          % simple scan test
         ?_assertEqual([{identifier,'$2'},
                   {relational_operator, "=="},
                   {identifier, xxx}] , hm_qp:scan("Fld1 == xxx", [{"Fld1",true,true}])),
+
+          % atom test
         ?_assertEqual([{identifier,'$2'},
                   {relational_operator,"=="},
-                  {atom,'test test'}], hm_qp:scan("Fld1 == 'test test'",[{"Fld1",true,true}]))
+                  {atom,'test test'}], hm_qp:scan("Fld1 == 'test test'",[{"Fld1",true,true}])),
+
+          % no space between == and atom 'test test'
+        ?_assertEqual([{identifier,'$2'},
+                  {relational_operator,"=="},
+                  {atom,'test test'}], hm_qp:scan("Fld1 =='test test'",[{"Fld1",true,true}]))
   ].
 
 

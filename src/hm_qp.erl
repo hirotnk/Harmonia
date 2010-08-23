@@ -8,13 +8,13 @@
 %% StringNum : 'a-Z' ('a-Z'|'0-9')*
 %% 
 %% examples:
-%%     A and (B or C) and B or D => {'or' {'and' {'and' A {'or' B C}} B} D}
-%                                   {'or',{'and',{'and',f1,{'or',f2,f3}},f4},f5}
-%%     A or (B or C) and B or D => {'or' A {'or' {'and' {'or' B C} B} D}}
+%% 
+%% 
+%% 
 -module(hm_qp).
 -compile([export_all]).
 
--define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
+ -define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
 -define(NUMBERS, "0123456789").
 
 parse(Tokens) ->
@@ -60,6 +60,8 @@ parse_term([{identifier,_}=Tble,{dot_op, _},{identifier, _}=Fld|Tokens], []) ->
     {{table_field, Tble,  Fld}, Tokens};
 parse_term([{identifier,Val}|Tokens], []) -> 
     {Val, Tokens};
+parse_term([{atom,Val}|Tokens], []) -> 
+    {Val, Tokens};
 parse_term([{const,Val}|Tokens], []) -> 
     {{const, Val}, Tokens}.
 
@@ -81,6 +83,9 @@ scan(Query, AttList)->
                   ({const, String}) -> 
                       {const, list_to_integer(lists:reverse(String))};
 
+                  ({atom, String}) -> 
+                      {atom, list_to_atom(lists:reverse(String))};
+
                   ({Type, String}) -> 
                       {Type, String}
               end,
@@ -88,6 +93,18 @@ scan(Query, AttList)->
 
 scan([],  Cur, Tokens) -> Tokens ++ Cur;
 
+% scan atom
+scan([$'|Query], [], Tokens) ->
+    scan(Query, [{atom, []}], Tokens);
+scan([$'|Query], [{atom, Cur}], Tokens) ->
+    scan(Query, [], Tokens++[{atom, Cur}]);
+scan([$'|Query], Cur, Tokens) ->
+    scan(Query, [{atom, []}], Tokens++Cur);
+scan([Char|Query], [{atom,Cur}], Tokens) ->
+    scan(Query, [{atom, [Char|Cur]}], Tokens);
+
+
+% general cases
 scan(" " ++ Query, [], Tokens) ->
     scan(Query, [], Tokens);
 
@@ -145,7 +162,12 @@ char_type(Char) ->
         false ->
             case lists:member(Char, ?NUMBERS) of 
                 true -> number;
-                false -> other_char
+                false -> 
+                    case Char of 
+                        $' -> single_quote;
+                        $" -> double_quote;
+                        _  -> other_char
+                    end
             end
     end.
 
