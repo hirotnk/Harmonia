@@ -12,7 +12,7 @@ TBD.
 
 h2. Example
 
-h3. Start each node with name foo, bar, etc.
+Start each node with name foo, bar, etc.
 
 <pre>
     process_flag(trap_exit, true).
@@ -23,13 +23,13 @@ h3. Start each node with name foo, bar, etc.
     harmonia_sup:join(cat, foo).
 </pre>
 
-h3. Make table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
+Make table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
 
 <pre>
     7> harmonia_table:make_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).
 </pre>
 
-h3. Retrieve table property
+Retrieve table property
 
 <pre>
     8> harmonia_table:get_table_info("Domain1", "Tbl1").
@@ -37,7 +37,7 @@ h3. Retrieve table property
 </pre>
 
 
-h3. store data to Tbl1 in Domain1
+store data to Tbl1 in Domain1
 
 <pre>
     9> harmonia_ds:store("Domain1", "Tbl1", [{"Fld1", key1},{"Fld2", value1}]).
@@ -48,7 +48,7 @@ h3. store data to Tbl1 in Domain1
     {ok,4}
 </pre>
 
-h3. get data from Tbl1 in Domain1 with query condition Fld1 == key2
+get data from Tbl1 in Domain1 with query condition Fld1 == key2
 
 <pre>
     12> harmonia_ds:get("Domain1", "Tbl1", "Fld1 == key2").
@@ -56,7 +56,7 @@ h3. get data from Tbl1 in Domain1 with query condition Fld1 == key2
 </pre>
 
 
-h3. Another example of making table
+Another example of making table
 
 <pre>
     13> harmonia_table:make_table("Domain1", "Tbl2", [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]).
@@ -68,7 +68,7 @@ h3. Another example of making table
          []}}
 </pre>
 
-h3. Another example of get table info
+Another example of get table info
 
 <pre>
     14> harmonia_table:get_table_info("Domain1", "Tbl2").
@@ -76,7 +76,7 @@ h3. Another example of get table info
         [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]}
 </pre>
 
-h3. Another example of store data
+Another example of store data
 
 <pre>
     15> harmonia_ds:store("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}]).
@@ -87,7 +87,7 @@ h3. Another example of store data
     {ok,5}
 </pre>
 
-h3. Another example of get data with range query
+Another example of get data with range query
 
 <pre>
     18> harmonia_ds:get("Domain1", "Tbl2", "Fld1 == yyy or Fld2 == 32").
