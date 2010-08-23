@@ -1,0 +1,49 @@
+TODO:
+
+1. make the load of harmonoa.erl module as light as possible
+2. make the module to workout both in local/global mode
+3. write out the test modules
+4. deal with logging
+5. add data migration process: harmonia_data_migrate.erl
+
+TODO:2010-8-23
+OK: 7:34AM: 1. parse string ", and atom '
+2. make README
+3. logger
+4. test scripts
+
+
+TODO:2010-8-22
+OK:1. Check all codes and make it clean and clear
+OK:2. complete get API
+3. clean code
+
+TODO:2010-8-19
+OK: 1. modify harmonia_ds, gen_server:get API so that it needs table name
+OK: 1'. check crude store API(does it need table info? using index?)
+OK: 2. make index store API
+OK: 3. make data store API
+OK: 4. make data get API using index
+OK: 5. make range query API using index
+
+
+TODO:2010-8-16
+TODO:2010-8-17
+TODO:2010-8-18
+OK: 1. make table creation API
+OK: 1. make table info get API
+UNDER: 2. make index store API
+UNDER: 3. make data store API
+4. make data get API using index
+5. make range query API using index
+
+TODO:2010-8-13
+OK: 1. check how to write out parser with Erlang, and write it
+TODO:2010-8-12
+OK: 1. data store API checking
+OK: 2. think about API 
+
+
+
+
+
