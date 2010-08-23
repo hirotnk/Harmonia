@@ -8,7 +8,7 @@ TODO:
 
 TODO:2010-8-23
 OK: 7:34AM: 1. parse string ", and atom '
-2. make README
+OK: 9:06AM: 2. make README
 3. logger
 4. test scripts
 
