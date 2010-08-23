@@ -1,56 +1,57 @@
-## About Harmonia
+h2. About Harmonia
+
 Harmonia is a distributed storage engine based on Chord DHT algorithm.
 It provides range query function over DHT storage layer.
 
 N.B.
 Now, it is in alpha quality.
 
-## Building and Installing 
+h2. Building and Installing 
 TBD.
 
-## Example
+h2. Example
 
-    # Start each node with name foo, bar, etc.
-    1> process_flag(trap_exit, true).
-    false
-    2> harmonia_sup:create(foo).
-    {ok,<0.36.0>}
-    3> harmonia_sup:join(bar, foo).
-    {ok,<0.48.0>}
-    4> harmonia_sup:join(dog, foo).
-    {ok,<0.54.0>}
-    5> harmonia_sup:join(hoge, foo).
-    {ok,<0.60.0>}
-    6> harmonia_sup:join(cat, foo).
-    {ok,<0.66.0>}
+    h3. Start each node with name foo, bar, etc.
+<pre>
+    process_flag(trap_exit, true).
+    harmonia_sup:create(foo).
+    harmonia_sup:join(bar, foo).
+    harmonia_sup:join(dog, foo).
+    harmonia_sup:join(hoge, foo).
+    harmonia_sup:join(cat, foo).
+</pre>
 
-    # Make table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
+    h3. Make table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
+<pre>
     7> harmonia_table:make_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).
-    {ok,{[{harmonia_foo,instance},
-          {harmonia_cat,181},
-          {harmonia_dog,238},
-          {harmonia_hoge,196}],
-         []}}
+</pre>
 
-    # Retrieve table property
+    h3. Retrieve table property
+<pre>
     8> harmonia_table:get_table_info("Domain1", "Tbl1").
     {ok,36885,[{"Fld1",true,true},{"Fld2",false,[]}]}
+</pre>
 
 
-    # store data to Tbl1 in Domain1
+    h3. store data to Tbl1 in Domain1
+<pre>
     9> harmonia_ds:store("Domain1", "Tbl1", [{"Fld1", key1},{"Fld2", value1}]).
     {ok,4}
     10> harmonia_ds:store("Domain1", "Tbl1", [{"Fld1", key2},{"Fld2", value2}]).
     {ok,4}
     11> harmonia_ds:store("Domain1", "Tbl1", [{"Fld1", key3},{"Fld2", value3}]).
     {ok,4}
+</pre>
 
-    # get data from Tbl1 in Domain1 with query condition Fld1 == key2
+    h3. get data from Tbl1 in Domain1 with query condition Fld1 == key2
+<pre>
     12> harmonia_ds:get("Domain1", "Tbl1", "Fld1 == key2").
     {ok,[['Domain1Tbl1',key2,value2]]}
+</pre>
 
 
-    # Another example of making table
+    h3. Another example of making table
+<pre>
     13> harmonia_table:make_table("Domain1", "Tbl2", [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]).
     {ok,{[{harmonia_cat,instance},
           {harmonia_dog,238},
@@ -58,36 +59,43 @@ TBD.
           {harmonia_hoge,196},
           {harmonia_bar,106}],
          []}}
+</pre>
 
-    # Another example of get table info
-14> harmonia_table:get_table_info("Domain1", "Tbl2").
-{ok,53273,
-    [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]}
+    h3. Another example of get table info
+<pre>
+    14> harmonia_table:get_table_info("Domain1", "Tbl2").
+    {ok,53273,
+        [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]}
+</pre>
 
-    # Another example of store data
+    h3. Another example of store data
+<pre>
     15> harmonia_ds:store("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}]).
     {ok,5}
     16> harmonia_ds:store("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile1}]).
     {ok,5}
     17> harmonia_ds:store("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile1}]).
     {ok,5}
+</pre>
 
-    # Another example of get data with range query
+    h3. Another example of get data with range query
+<pre>
     18> harmonia_ds:get("Domain1", "Tbl2", "Fld1 == yyy or Fld2 == 32").
     {ok,[['Domain1Tbl2',xxx,32,textfile1],
          ['Domain1Tbl2',yyy,150,textfile1]]}
     19> harmonia_ds:get("Domain1", "Tbl2", "Fld1 == yyy and Fld2 == 150").
     {ok,[['Domain1Tbl2',yyy,150,textfile1]]}
     20> 
+</pre>
 
-## Algorithm
+h2. Algorithm
 Harmonia is based on Chord algorithm, and it builds index on top of that, hence provides range query function.
 
-## Author
+h2. Author
 Copyright (C) Yoshihiro TANAKA
 
-Written by Yoshihiro TANALA <hirotnkg@gmail.com>
+Written by Yoshihiro TANAKA <hirotnkg@gmail.com>
 
-## License
+h2. License
 TBD
 
