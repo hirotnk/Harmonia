@@ -90,16 +90,7 @@ is_between2(From, Target, To) when From  >  To ->
     end.
 
 get_rand_procname() ->
-    % TODO: these name shoud be taken from configuration file
-    Pre1 = "harmonia_", 
-    Pre2 = "harmonia_ds", 
-    Pre3 = "harmonia_table", 
-    Pre4 = "harmonia_stabilizer", 
-    ProcList = [X || X <- registered(), 
-                lists:prefix(Pre1,atom_to_list(X)) andalso not 
-                lists:prefix(Pre2,atom_to_list(X)) andalso not
-                lists:prefix(Pre3,atom_to_list(X)) andalso not
-                lists:prefix(Pre4,atom_to_list(X)) ],
+    {ok, ProcList} = gen_server:call(?name_server, get_name_list),
     case length(ProcList) of 
         0 -> {error, instance};
         N -> {ok, lists:nth(random:uniform(N), ProcList)}

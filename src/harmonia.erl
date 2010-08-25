@@ -9,8 +9,6 @@
 
 -include("harmonia.hrl").
 
-
-
 start([]) -> ok;
 start(NodeNameList) ->
     start_link(hd(NodeNameList)),
@@ -20,12 +18,12 @@ start_link({create, RegName}) ->
     gen_server:start_link({local, 
                            name(RegName)}, 
                            ?MODULE, 
-                           {create, name(RegName)}, []);
+                           {create, RegName}, []);
 start_link({join, RegName, RootName}) ->
     gen_server:start_link({local, 
                            name(RegName)}, 
                            ?MODULE, 
-                           {{join, RootName}, name(RegName)}, []).
+                           {{join, RootName}, RegName}, []).
 
 stop() ->
     gen_server:cast(?MODULE, stop).
@@ -42,7 +40,7 @@ terminate(_Reason, _State) ->
 lookup(Key) ->
     KeyVector = hm_misc:get_digest_from_atom(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
-    {SuccName, _} = gen_server:call(RegName, {find_successor, KeyVector, nil}),
+    {SuccName, _} = gen_server:call(name(RegName), {find_successor, KeyVector, nil}),
     SuccName.
 
 state_info(RegName) ->
@@ -50,8 +48,9 @@ state_info(RegName) ->
 state_info(RegName, NodeName) ->
     gen_server:call({name(RegName), NodeName}, state_info).
 
-init({Op, NodeName}) ->
+init({Op, RegName}) ->
     hm_misc:crypto_start(),
+    NodeName = name(RegName),
     NodeVector = hm_misc:get_digest_from_atom(NodeName),
     State = #state{node_name = NodeName, node_vector = NodeVector},
     case Op of 
@@ -59,12 +58,12 @@ init({Op, NodeName}) ->
             NewState = State#state{finger = [{NodeName, NodeVector}]};
 
         {join, RootNodeName} ->
-            % when find_successor is called from other node,
-            % current fix should not modified, so passing nil
             NewSucc = gen_server:call(name(RootNodeName), 
                                       {find_successor, NodeVector, nil}),
             NewState = State#state{finger = [NewSucc]}
     end,
+    {ok, RegName} = gen_server:call(?name_server, {register_name, RegName}),
+
     {ok, NewState}.
 
 handle_cast(stop, State) -> {stop, normal, State};

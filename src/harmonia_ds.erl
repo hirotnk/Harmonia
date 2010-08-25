@@ -66,14 +66,12 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
                 {ok, Tid, AttList} ->
                     Fun = fun ?MODULE:fun_for_index/2,
                     {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun),
-                    ?debug_p("lookup_index_table:index All:[~p].~n", none, [[{{'$1', FlistModified}, MS, ['$$']}]]),
                     {ok, RowList} = 
                         gen_server:call(IndexNodeDs, {select_table, Tid, FlistModified, MS}),
                     UniqNodeList = 
                         sets:to_list(
                             sets:from_list(
                                 lists:foldl(fun (Row, AccIn) -> AccIn ++ [hd(Row)] end, [], RowList))),
-                    ?debug_p("lookup_index_table:UniqNodeList:[~p].~n", none, [UniqNodeList]),
                     {ok, UniqNodeList, AttList, MS};
                 {error, Msg} -> 
                     {error, Msg}
@@ -100,7 +98,6 @@ lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
         true ->
             {ok, RowList} = 
                 gen_server:call(DataNodeName, {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}),
-            ?debug_p("lookup_index_table:RowList:[~p].~n", none, [RowList]),
             NewRecList = RecList ++ RowList,
             lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, NewRecList)
     end.
@@ -223,13 +220,11 @@ store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call(RouterName, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
-    ?debug_p("store:SuccList:[~p] RouterName:[~p].~n", store, [SuccList, RouterName]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
 
 % the successor list here includes target node itself, and
 % tail of successor list
 store_to_succlist([], TableName, Key, Value, {Len, Cnt}) -> 
-    ?debug_p("store_to_succlist:LINE:[~p] Tab:[~p] Key:[~p] Value:[~p] count:[~p].~n", 
         store, [?LINE, TableName, Key, Value, {Len, Cnt}]),
     case Len =:= Cnt of
         true -> {ok, Cnt};

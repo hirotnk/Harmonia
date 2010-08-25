@@ -6,11 +6,27 @@ TODO:
 4. deal with logging
 5. add data migration process: harmonia_data_migrate.erl
 
+TODO:2010-8-24
+OK: 1'. modify "random node search part" to refer to bootstrap or just successor of it.
+     -> want to make it random, so we need this facility, but we can make it by 
+        creating fixed named process, and keep RegNames in it
+
+1. logger
+    event_logger implementation
+    understand and try dbg tracer to debug Harmonia
+2. test scripts -> looked over eUnit and Common test
+3. parallel select 
+
+
+
 TODO:2010-8-23
 OK: 7:34AM: 1. parse string ", and atom '
 OK: 9:06AM: 2. make README
 3. logger
-4. test scripts
+    event_logger implementation
+    understand and try dbg tracer to debug Harmonia
+4. test scripts -> looked over eUnit and Common test
+5. parallel select 
 
 
 TODO:2010-8-22

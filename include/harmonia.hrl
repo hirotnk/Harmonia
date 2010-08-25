@@ -5,6 +5,9 @@
 -define(key_bit_length, 160).
 -endif.
 
+% registered name server id
+-define(name_server, hm_name_server).
+
 % Interval of stabilizer
 -define(stabilize_interval, 3000).
 
