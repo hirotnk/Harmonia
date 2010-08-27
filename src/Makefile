@@ -12,12 +12,13 @@ ERL = erl
 GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
 PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
-SOURCE = hm_ds.erl \
-	hm_table.erl \
-	hm_router.erl \
-	hm_stabilizer.erl \
+SOURCE = harmonia.erl \
 	hm_sup.erl \
 	hm_misc.erl \
+	hm_router.erl \
+	hm_ds.erl \
+	hm_table.erl \
+	hm_stabilizer.erl \
 	hm_name_sup.erl \
 	hm_name_server.erl \
 	hm_qp.erl
@@ -29,12 +30,14 @@ $(EBIN)/%.beam: %.erl
 	/usr/bin/erlc  $(EDBG) -W -b beam -o $(EBIN) $(EFLAGS) $<
 
 all: $(TARGETS)
+	cp harmonia.app ../ebin/harmonia.app
 
 debug: $(TARGETS)
 	/usr/bin/erlc -Ddebug -W -b beam -o $(EBIN) $(EFLAGS) $<
    
 clean:
 	\rm -f $(CODE) 
+	\rm -f ../ebin/harmonia.app
 
 
 #######################################################################

@@ -1,10 +1,22 @@
 -module(hm_sup).
 -behaviour(supervisor).
--export([create/1, join/2, stop/1]).
+-export([start_link/0, create/1, join/2, stop/1]).
 -export([init/1]).
 
 -include("harmonia.hrl").
 
+start_link() -> 
+    case application:get_env(harmonia, type) of
+        {ok, create} -> 
+            {ok, Name} = application:get_env(harmonia, name),
+            create(Name);
+        {ok, join} ->
+            {ok, Name} = application:get_env(harmonia, name),
+            {ok, Root} = application:get_env(harmonia, root),
+            join(Name, Root);
+        undefined ->
+            {error, failed_env_type}
+    end.
 
 create(Name)         -> supervisor:start_link({local, Name}, ?MODULE, {create, Name}).
 join(Name, RootName) -> supervisor:start_link({local, Name}, ?MODULE, {join, Name, RootName}).
@@ -16,7 +28,7 @@ create_children(Arg, Name) ->
     Router     = child(hm_router, Arg, worker),
     Stabilizer = child(hm_stabilizer, Name, worker),
     DataStore  = child(hm_ds, Name, worker),
-    Table      = child(harmonia_table, Name, worker),
+    Table      = child(hm_table, Name, worker),
     ServerList = [
                   Router,
                   Stabilizer,

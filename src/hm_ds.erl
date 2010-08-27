@@ -61,7 +61,7 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
         {error, none} -> {error, no_node_available};
         {IndexNode, _Vector} ->
             IndexNodeDs = name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
-            IndexNodeTable = harmonia_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
+            IndexNodeTable = hm_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
             case gen_server:call(IndexNodeTable, {get_table_info, DTNameTable}) of
                 {ok, Tid, AttList} ->
                     Fun = fun ?MODULE:fun_for_index/2,
@@ -106,7 +106,7 @@ store(DomainName, TableName, KVList) ->
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
 
     {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
-    case harmonia_table:get_table_info(DomainName, TableName, NodeList) of
+    case hm_table:get_table_info(DomainName, TableName, NodeList) of
         {ok, Tid, AttList} ->
             DTName = list_to_atom(DomainName++TableName),
             {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
