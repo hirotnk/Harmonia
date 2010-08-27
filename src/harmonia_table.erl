@@ -1,4 +1,4 @@
--module(harmonia_table).
+-module(hm_table).
 -behaviour(gen_server).
 -vsn('0.1').
 
@@ -52,7 +52,7 @@ make_table_in([{NodeName,_NodeVector}=CurNode|Tail],
     case hm_misc:is_alive(TargetName) of 
         true ->
             {ok, TableInfo} =  gen_server:call(TargetName, {make_table, DomainName, TableName, AttList}),
-            TargetName_ds = harmonia_ds:name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(NodeName)))),
+            TargetName_ds = hm_ds:name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(NodeName)))),
             gen_server:call(TargetName_ds, {register_table, TableInfo}),
             make_table_in(Tail, FailedList, DomainName, TableName, AttList);
         false ->
@@ -77,4 +77,4 @@ handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblLi
     TableId = ets:new(DTName, [duplicate_bag, public]),
     {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
 
-name(Name) -> list_to_atom("harmonia_table_" ++ atom_to_list(Name)).
+name(Name) -> list_to_atom("hm_table" ++ atom_to_list(Name)).

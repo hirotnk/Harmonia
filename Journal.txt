@@ -6,6 +6,12 @@ TODO:
 4. deal with logging
 5. add data migration process: harmonia_data_migrate.erl
 
+TODO:2010-8-27
+1. add event_logger
+2. add config system file
+3. test script
+4. parallel select
+
 TODO:2010-8-24
 OK: 1'. modify "random node search part" to refer to bootstrap or just successor of it.
      -> want to make it random, so we need this facility, but we can make it by 

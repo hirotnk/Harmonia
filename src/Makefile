@@ -12,11 +12,11 @@ ERL = erl
 GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
 PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
-SOURCE = harmonia_ds.erl \
-	harmonia_table.erl \
-	harmonia.erl \
-	harmonia_stabilizer.erl \
-	harmonia_sup.erl \
+SOURCE = hm_ds.erl \
+	hm_table.erl \
+	hm_router.erl \
+	hm_stabilizer.erl \
+	hm_sup.erl \
 	hm_misc.erl \
 	hm_name_sup.erl \
 	hm_name_server.erl \
