@@ -9,10 +9,10 @@
 
 
 start_link(RegName) ->
-    gen_server:start_link({local, name(RegName)}, ?MODULE, RegName, []).
+    gen_server:start_link({global, name(RegName)}, ?MODULE, RegName, []).
 
 stop(RegName) ->
-    gen_server:cast(name(RegName), stop).
+    gen_server:cast({global, name(RegName)}, stop).
 
 terminate(_Reason, _State) -> ok.
 
@@ -30,8 +30,8 @@ get_table_info(DomainName, TableName, NodeList) ->
     case hm_misc:get_first_alive_entry(NodeList) of
         {error, none} -> {error, no_node_available};
         {NodeName, _Vector} -> 
-            TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(NodeName)))),
-            gen_server:call(TargetName, {get_table_info, DomainName, TableName})
+            TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
+            gen_server:call({global, TargetName}, {get_table_info, DomainName, TableName})
     end.
 
 
@@ -48,12 +48,12 @@ make_table_in([], FailedList, DomainName, TableName, AttList) ->
     {ok, FailedList};
 make_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
                   FailedList, DomainName, TableName, AttList) ->
-    TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(NodeName)))),
+    TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
     case hm_misc:is_alive(TargetName) of 
         true ->
-            {ok, TableInfo} =  gen_server:call(TargetName, {make_table, DomainName, TableName, AttList}),
-            TargetName_ds = hm_ds:name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(NodeName)))),
-            gen_server:call(TargetName_ds, {register_table, TableInfo}),
+            {ok, TableInfo} =  gen_server:call({global, TargetName}, {make_table, DomainName, TableName, AttList}),
+            TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
+            gen_server:call({global, TargetName_ds}, {register_table, TableInfo}),
             make_table_in(Tail, FailedList, DomainName, TableName, AttList);
         false ->
             make_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
@@ -77,4 +77,4 @@ handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblLi
     TableId = ets:new(DTName, [duplicate_bag, public]),
     {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
 
-name(Name) -> list_to_atom("hm_table" ++ atom_to_list(Name)).
+name(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Name)).

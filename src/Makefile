@@ -19,6 +19,7 @@ SOURCE = harmonia.erl \
 	hm_ds.erl \
 	hm_table.erl \
 	hm_stabilizer.erl \
+	hm_config.erl \
 	hm_name_sup.erl \
 	hm_name_server.erl \
 	hm_qp.erl

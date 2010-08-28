@@ -15,12 +15,12 @@ start(NodeNameList) ->
     start(tl(NodeNameList)).
 
 start_link({create, RegName}) ->
-    gen_server:start_link({local, 
+    gen_server:start_link({global, 
                            name(RegName)}, 
                            ?MODULE, 
                            {create, RegName}, []);
 start_link({join, RegName, RootName}) ->
-    gen_server:start_link({local, 
+    gen_server:start_link({global, 
                            name(RegName)}, 
                            ?MODULE, 
                            {{join, RootName}, RegName}, []).
@@ -29,7 +29,7 @@ stop() ->
     gen_server:cast(?MODULE, stop).
 
 stop(RegName) ->
-    gen_server:cast(name(RegName), stop).
+    gen_server:cast({global, name(RegName)}, stop).
 
 terminate(_Reason, _State) ->
     hm_misc:crypto_stop(),
@@ -40,11 +40,11 @@ terminate(_Reason, _State) ->
 lookup(Key) ->
     KeyVector = hm_misc:get_digest_from_atom(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
-    {SuccName, _} = gen_server:call(name(RegName), {find_successor, KeyVector, nil}),
+    {SuccName, _} = gen_server:call({global, name(RegName)}, {find_successor, KeyVector, nil}),
     SuccName.
 
 state_info(RegName) ->
-    gen_server:call(name(RegName), state_info).
+    gen_server:call({global, name(RegName)}, state_info).
 state_info(RegName, NodeName) ->
     gen_server:call({name(RegName), NodeName}, state_info).
 
@@ -58,11 +58,11 @@ init({Op, RegName}) ->
             NewState = State#state{finger = [{NodeName, NodeVector}]};
 
         {join, RootNodeName} ->
-            NewSucc = gen_server:call(name(RootNodeName), 
+            NewSucc = gen_server:call({global, name(RootNodeName)}, 
                                       {find_successor, NodeVector, nil}),
             NewState = State#state{finger = [NewSucc]}
     end,
-    {ok, RegName} = gen_server:call(?name_server, {register_name, RegName}),
+    {ok, RegName} = gen_server:call({global, ?name_server}, {register_name, RegName}),
 
     {ok, NewState}.
 
@@ -79,7 +79,7 @@ handle_cast({find_successor_ask_other, NodeVector, From}, State) ->
             gen_server:reply(From, NewSucc);
         {not_found, {InqNode, _InqVector}} ->
             % forward message
-            gen_server:cast(InqNode, {find_successor_ask_other, NodeVector, From})
+            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From})
     end,
     {noreply, State};
 
@@ -244,7 +244,7 @@ return_successor_info(find_successor, RetVal, NodeVector, From, NewState) ->
         {found, NewSucc} -> {reply, NewSucc, NewState};
         {not_found, {InqNode, _InqVector}} ->
             % ask to InqNode about NodeVector
-            gen_server:cast(InqNode, {find_successor_ask_other, NodeVector, From}),
+            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From}),
             {noreply, NewState}
     end;
 return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, NewState) ->
@@ -253,7 +253,7 @@ return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, Ne
             {reply, {NewSucc, NewState#state.succlist}, NewState};
         {not_found, {InqNode, _InqVector}} ->
             % ask to InqNode about NodeVector
-            gen_server:cast(InqNode, {find_successor_ask_other, NodeVector, From}),
+            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From}),
             {noreply, NewState}
     end.
 

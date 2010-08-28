@@ -27,7 +27,7 @@
 -define(debug_p  (Fmt, RegName, Data), error_logger:info_msg("[~p:~p:~p:~p:~p:~p]:~n" ++ Fmt, [node(), ?MACHINE, ?FILE, ?MODULE, ?LINE, RegName] ++ Data)).
 
 % process prefix
--define(PROCESS_PREFIX, "harmonia_").
+-define(PROCESS_PREFIX, "hm_router_").
 
 -record(state, {node_name, node_vector, predecessor=nil, finger=[], succlist=[], current_fix=0}).
 

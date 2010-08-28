@@ -1,35 +1,34 @@
 -module(hm_sup).
 -behaviour(supervisor).
--export([start_link/0, create/1, join/2, stop/1]).
+-export([start_link/1, create/2, join/3, stop/1]).
 -export([init/1]).
 
 -include("harmonia.hrl").
 
-start_link() -> 
-    case application:get_env(harmonia, type) of
-        {ok, create} -> 
-            {ok, Name} = application:get_env(harmonia, name),
-            create(Name);
-        {ok, join} ->
-            {ok, Name} = application:get_env(harmonia, name),
-            {ok, Root} = application:get_env(harmonia, root),
-            join(Name, Root);
-        undefined ->
-            {error, failed_env_type}
+start_link(Env) -> 
+    case proplists:get_value(node_type, Env) of
+        create -> 
+            create(proplists:get_value(name, Env), Env);
+        join ->
+            join(proplists:get_value(name, Env),
+                 proplists:get_value(root, Env), Env)
     end.
 
-create(Name)         -> supervisor:start_link({local, Name}, ?MODULE, {create, Name}).
-join(Name, RootName) -> supervisor:start_link({local, Name}, ?MODULE, {join, Name, RootName}).
+create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
+join(Name, RootName, Env) -> supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}).
 
-init({create, Name}          = Arg) -> create_children(Arg, Name);
-init({join, Name, _RootName} = Arg) -> create_children(Arg, Name).
+init({{create, Name}          = Arg, Env}) -> create_children(Arg, Name, Env);
+init({{join, Name, _RootName} = Arg, Env}) -> create_children(Arg, Name, Env).
 
-create_children(Arg, Name) -> 
-    Router     = child(hm_router, Arg, worker),
+create_children(Arg, Name, Env) -> 
+    Config     = child(hm_config,     Env, worker),
+    Router     = child(hm_router,     Arg,  worker),
     Stabilizer = child(hm_stabilizer, Name, worker),
-    DataStore  = child(hm_ds, Name, worker),
-    Table      = child(hm_table, Name, worker),
+    DataStore  = child(hm_ds,         Name, worker),
+    Table      = child(hm_table,      Name, worker),
+
     ServerList = [
+                  Config,
                   Router,
                   Stabilizer,
                   DataStore,
@@ -50,7 +49,7 @@ child(Module, Arg, Type) ->
       [Module]     % Modules
   }.
 
-stop(Name) -> exit(whereis(Name), kill).
+stop(Name) -> exit(global:whereis_name(Name), kill).
 
 name(RegName) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(RegName)).
 

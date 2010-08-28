@@ -6,12 +6,13 @@
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
+
 -define(MODULE_NAME, atom_to_list(?MODULE)).
 -define(hm_global_table, hm_table_global).
 
 
 start_link(RegName) ->
-    gen_server:start_link({local, name(RegName)}, ?MODULE, RegName, []).
+    gen_server:start_link({global, name(RegName)}, ?MODULE, RegName, []).
 
 stop() ->
     gen_server:cast(?MODULE, stop).
@@ -23,7 +24,7 @@ terminate(_Reason, _State) -> ok.
 
 get(Key) ->
     TargetName = hm_router:lookup(Key),
-    SuccListTarget = gen_server:call(TargetName, copy_succlist),
+    SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
 
@@ -62,12 +63,12 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
         {IndexNode, _Vector} ->
             IndexNodeDs = name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
             IndexNodeTable = hm_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
-            case gen_server:call(IndexNodeTable, {get_table_info, DTNameTable}) of
+            case gen_server:call({global, IndexNodeTable}, {get_table_info, DTNameTable}) of
                 {ok, Tid, AttList} ->
                     Fun = fun ?MODULE:fun_for_index/2,
                     {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun),
                     {ok, RowList} = 
-                        gen_server:call(IndexNodeDs, {select_table, Tid, FlistModified, MS}),
+                        gen_server:call({global, IndexNodeDs}, {select_table, Tid, FlistModified, MS}),
                     UniqNodeList = 
                         sets:to_list(
                             sets:from_list(
@@ -97,7 +98,7 @@ lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
             lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, RecList);
         true ->
             {ok, RowList} = 
-                gen_server:call(DataNodeName, {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}),
+                gen_server:call({global, DataNodeName}, {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}),
             NewRecList = RecList ++ RowList,
             lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, NewRecList)
     end.
@@ -218,7 +219,7 @@ store_in(TableName, Key, Value) ->
 
 store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
-    SuccListTemp = gen_server:call(RouterName, copy_succlist),
+    SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
 
@@ -237,7 +238,7 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
     {RouterName, _} = hd(SuccList),
 
     TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
-    case whereis(TargetName) of 
+    case global:whereis_name(TargetName) of 
         undefined -> 
             % TODO: when fail to store data, or node is down, write logging to  
             %       another file and continue processing
@@ -246,7 +247,7 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
             NewCnt = Cnt;
         _Pid      -> 
             ?debug_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
-            Reply = gen_server:call(TargetName, {store, TableName, Key, Value}),
+            Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
             case Reply of
                 true -> NewCnt = Cnt + 1;
                 false -> NewCnt = Cnt
@@ -258,12 +259,12 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
 get_from_succlist([], _Key) -> {error, nodata};
 get_from_succlist(Succlist, Key) ->
     {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
-    case whereis(TargetName) of
+    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
+    case global:whereis_name(TargetName) of
         undefined ->
             get_from_succlist(tl(Succlist), Key);
         _Any ->
-            Result = gen_server:call(TargetName, {get, Key}),
+            Result = gen_server:call({global, TargetName}, {get, Key}),
             ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of
                 0 -> get_from_succlist(tl(Succlist), Key);
@@ -276,12 +277,12 @@ get_from_succlist(Succlist, Key) ->
 get_from_succlist([], BagName, _Key) -> {error, nodata};
 get_from_succlist(Succlist, BagName, Key) ->
     {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
-    case whereis(TargetName) of
+    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
+    case global:whereis_name(TargetName) of
         undefined ->
             get_from_succlist(tl(Succlist), BagName, Key);
         _ ->
-            Result = gen_server:call(TargetName, {get, BagName, Key}),
+            Result = gen_server:call({global, TargetName}, {get, BagName, Key}),
             ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of
                 0 -> 
@@ -293,13 +294,13 @@ get_from_succlist(Succlist, BagName, Key) ->
 get_from_succlist([],      _BagName, _Key, _Cond) -> [{error, nodata}];
 get_from_succlist(Succlist, BagName, Key, Cond) ->
     {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
-    case whereis(TargetName) of
+    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
+    case global:whereis_name(TargetName) of
         undefined ->
             get_from_succlist(tl(Succlist), BagName, Key, Cond);
         _ ->
             % get list of [{key, nodename},..]
-            Result = gen_server:call(TargetName, {get, BagName, Key, Cond}),
+            Result = gen_server:call({global, TargetName}, {get, BagName, Key, Cond}),
 
             ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of

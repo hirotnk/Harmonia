@@ -7,8 +7,8 @@
 -define(hm_name, hm_name_server).
 
 
-start() -> supervisor:start_link({local, ?MODULE}, ?MODULE, {}).
-stop() -> exit(whereis(?MODULE), kill).
+start() -> supervisor:start_link({global, ?MODULE}, ?MODULE, {}).
+stop() -> exit(global:whereis_name(?MODULE), kill).
 
 init(_) -> 
     {ok, { {one_for_one, 5, 2000}, % restart taple

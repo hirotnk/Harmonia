@@ -1,8 +1,8 @@
 %% start shell command:
 %%  root node:
-%%    erl -pa ebin -config harmonia -harmonia type 'create' -harmonia name foo
+%%    erl -pa ebin -config harmonia -harmonia node_type 'create' -harmonia name foo
 %%  join node:
-%%    erl -pa ebin -config harmonia -harmonia type 'join' -harmonia name <name> - harmonia root <root name>
+%%    erl -pa ebin -config harmonia -harmonia node_type 'join' -harmonia name <name> - harmonia root <root name>
 %%
 %%
 
@@ -12,7 +12,8 @@
 -export([start/2, stop/1]).
 
 start(_StartType, _StartArgs) ->
-    case hm_sup:start_link() of
+    Env = application:get_all_env(harmonia),
+    case hm_sup:start_link(Env) of
         {ok, Pid} ->
             {ok, Pid};
         Other ->

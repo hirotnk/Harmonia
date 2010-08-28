@@ -8,7 +8,7 @@
 -include("harmonia.hrl").
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, ?MODULE, []).
+    gen_server:start_link({global, ?MODULE}, ?MODULE, ?MODULE, []).
 
 stop() ->
     gen_server:cast(?MODULE, stop).

@@ -90,7 +90,7 @@ is_between2(From, Target, To) when From  >  To ->
     end.
 
 get_rand_procname() ->
-    {ok, ProcList} = gen_server:call(?name_server, get_name_list),
+    {ok, ProcList} = gen_server:call({global, ?name_server}, get_name_list),
     case length(ProcList) of 
         0 -> {error, instance};
         N -> {ok, lists:nth(random:uniform(N), ProcList)}
@@ -105,7 +105,7 @@ get_first_alive_entry([{Name, _Vector} = FirstNode|NodeList]) ->
     end.
 
 is_alive(NodeName) ->
-    case whereis(NodeName) of
+    case global:whereis_name(NodeName) of
         undefined -> false;
         _         -> true
     end.
@@ -202,7 +202,7 @@ make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name
     %% TODO: this two line should use find_successor_with_succlist ? for performance
     NodeName = hm_router:lookup(DTName=list_to_atom(DomainName ++ TableName)),
-    SuccList = gen_server:call(NodeName, copy_succlist),
+    SuccList = gen_server:call({global, NodeName}, copy_succlist),
 
     NodeList = make_request_list(NodeName, SuccList).
 
