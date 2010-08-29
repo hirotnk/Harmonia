@@ -1,6 +1,11 @@
 -module(hm_sup).
 -behaviour(supervisor).
--export([start_link/1, create/2, join/3, stop/1]).
+-export([
+        create/2, 
+        join/3, 
+        start_link/1, 
+        stop/1
+        ]).
 -export([init/1]).
 
 -include("harmonia.hrl").
@@ -21,30 +26,26 @@ init({{create, Name}          = Arg, Env}) -> create_children(Arg, Name, Env);
 init({{join, Name, _RootName} = Arg, Env}) -> create_children(Arg, Name, Env).
 
 create_children(Arg, Name, Env) -> 
-    Config     = child(hm_config,     Env, worker),
-    Router     = child(hm_router,     Arg,  worker),
-    Stabilizer = child(hm_stabilizer, Name, worker),
-    DataStore  = child(hm_ds,         Name, worker),
-    Table      = child(hm_table,      Name, worker),
-
-    ServerList = [
-                  Config,
-                  Router,
-                  Stabilizer,
-                  DataStore,
-                  Table
-                  ],
+    ServerList = 
+        [
+            child(hm_config,     hm_config,     Env, worker),
+            child(hm_event_mgr,  gen_event,     {local, hm_event_mgr}, worker),
+            child(hm_router,     hm_router,     Arg,  worker),
+            child(hm_stabilizer, hm_stabilizer, Name, worker),
+            child(hm_ds,         hm_ds,         Name, worker),
+            child(hm_table,      hm_table,      Name, worker)
+        ],
     {ok, { {one_for_one, 5, 2000}, ServerList } }.
 
-child(Module, Arg, Type) ->
-  {Module,         % Name
+child(Name, Module, Arg, Type) ->
+  {Name,           % Name
       {            % Start Function
           Module,          % Module
           start_link,      % Function
           [Arg]            % Arg
       }, 
       permanent,   % restart type 
-      brutal_kill, % Shutdown time
+      1000,        % Shutdown time
       Type,        % Process type
       [Module]     % Modules
   }.

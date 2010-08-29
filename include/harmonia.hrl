@@ -24,7 +24,14 @@
 -define(max_key_value, ((1 bsl ?key_bit_length) - 1)).
 
 % logging info
--define(debug_p  (Fmt, RegName, Data), error_logger:info_msg("[~p:~p:~p:~p:~p:~p]:~n" ++ Fmt, [node(), ?MACHINE, ?FILE, ?MODULE, ?LINE, RegName] ++ Data)).
+-define(LOG_INFO, info).
+-define(LOG_WARNING, warning).
+-define(LOG_ERROR, error).
+
+-define(log_parts (RegName, Data), ([node(), self(), ?MODULE, ?LINE, RegName] ++ Data)).
+-define(info_p    (Fmt, RegName, Data), hm_event_mgr:log(?LOG_INFO,    Fmt, ?log_parts(RegName, Data))).
+-define(warning_p (Fmt, RegName, Data), hm_event_mgr:log(?LOG_WARNING, Fmt, ?log_parts(RegName, Data))).
+-define(error_p   (Fmt, RegName, Data), hm_event_mgr:log(?LOG_ERROR,   Fmt, ?log_parts(RegName, Data))).
 
 % process prefix
 -define(PROCESS_PREFIX, "hm_router_").

@@ -189,22 +189,20 @@ is_pred_nil(State) ->
     end.
 
 make_request_list(TargetName, SuccListTarget) ->
-    SuccList = 
-        case length(SuccListTarget) > 0 of
-            true ->
-                SuccTemp = sets:to_list(sets:from_list(SuccListTarget)),
-                [{TargetName, instance} | lists:filter(fun({X,_})-> X =/= TargetName end, SuccTemp)];
-            false ->
-                [{TargetName, instance}]
-        end.
+    case length(SuccListTarget) > 0 of
+        true ->
+            SuccTemp = sets:to_list(sets:from_list(SuccListTarget)),
+            [{TargetName, instance} | lists:filter(fun({X,_})-> X =/= TargetName end, SuccTemp)];
+        false ->
+            [{TargetName, instance}]
+    end.
 
 make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name
     %% TODO: this two line should use find_successor_with_succlist ? for performance
-    NodeName = hm_router:lookup(DTName=list_to_atom(DomainName ++ TableName)),
+    NodeName = hm_router:lookup(list_to_atom(DomainName ++ TableName)),
     SuccList = gen_server:call({global, NodeName}, copy_succlist),
-
-    NodeList = make_request_list(NodeName, SuccList).
+    make_request_list(NodeName, SuccList).
 
 
 get_digest_from_atom(Key) ->

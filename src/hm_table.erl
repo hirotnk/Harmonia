@@ -2,7 +2,14 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start_link/1, stop/1, name/1, make_table/3, get_table_info/2, get_table_info/3 ]).
+-export([
+        get_table_info/2, 
+        get_table_info/3,
+        make_table/3, 
+        name/1, 
+        start_link/1, 
+        stop/1 
+        ]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
@@ -44,7 +51,7 @@ make_table(DomainName, TableName, AttList) ->
     {ok, {NodeList, FailedList}}.
 
 
-make_table_in([], FailedList, DomainName, TableName, AttList) ->
+make_table_in([], FailedList, _DomainName, _TableName, _AttList) ->
     {ok, FailedList};
 make_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
                   FailedList, DomainName, TableName, AttList) ->
@@ -63,12 +70,12 @@ make_table_in([{NodeName,_NodeVector}=CurNode|Tail],
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
-handle_call({get_table_info, DomainName, TableName}, _From, {RegName, TblList}=State) ->
+handle_call({get_table_info, DomainName, TableName}, _From, {_RegName, TblList}=State) ->
     DTName=list_to_atom(DomainName ++ TableName),
     ReplyData = hm_misc:search_table_attlist(DTName, TblList),
     {reply, ReplyData, State};
 
-handle_call({get_table_info, DTName}, _From, {RegName, TblList}=State) ->
+handle_call({get_table_info, DTName}, _From, {_RegName, TblList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TblList),
     {reply, ReplyData, State};
 

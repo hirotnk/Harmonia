@@ -22,6 +22,9 @@ SOURCE = harmonia.erl \
 	hm_config.erl \
 	hm_name_sup.erl \
 	hm_name_server.erl \
+	hm_event_mgr.erl \
+	hm_log_h_file.erl \
+	hm_log_h_term.erl \
 	hm_qp.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)

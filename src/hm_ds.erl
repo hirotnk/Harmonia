@@ -2,7 +2,17 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start_link/1, stop/1, store/2, store/3, get/1, name/1, get/3, fun_for_index/2, fun_for_data/2]).
+-export([
+        fun_for_data/2,
+        fun_for_index/2,
+        get/1,
+        get/3,
+        name/1,
+        start_link/1,
+        stop/1,
+        store/2,
+        store/3
+        ]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
@@ -15,10 +25,10 @@ start_link(RegName) ->
     gen_server:start_link({global, name(RegName)}, ?MODULE, RegName, []).
 
 stop() ->
-    gen_server:cast(?MODULE, stop).
+    gen_server:cast({global, ?MODULE}, stop).
 
 stop(RegName) ->
-    gen_server:cast(name(RegName), stop).
+    gen_server:cast({global, name(RegName)}, stop).
 
 terminate(_Reason, _State) -> ok.
 
@@ -79,15 +89,15 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
             end
     end.
 
-fun_for_index({Fname, Bool, _},{N,FList}) ->
+fun_for_index({_Fname, Bool, _},{N,FList}) ->
     case Bool =:= true of
         true -> {N+1, FList ++ [list_to_atom("$" ++ integer_to_list(N+1))]};
         false -> {N, FList}
     end.
 
-fun_for_data({Fname, _, _},{N,Flist}) -> {N+1, Flist ++ [list_to_atom("$" ++ integer_to_list(N+1))]}.
+fun_for_data(_T,{N,Flist}) -> {N+1, Flist ++ [list_to_atom("$" ++ integer_to_list(N+1))]}.
 
-lookup_data_table([], DTNameTable, FlistModified, MS, RecList) -> {ok, RecList};
+lookup_data_table([], _DTNameTable, _FlistModified, _MS, RecList) -> {ok, RecList};
 lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     NodeName = hd(UniqNodeList),
     DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
@@ -108,7 +118,7 @@ store(DomainName, TableName, KVList) ->
 
     {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
     case hm_table:get_table_info(DomainName, TableName, NodeList) of
-        {ok, Tid, AttList} ->
+        {ok, _Tid, AttList} ->
             DTName = list_to_atom(DomainName++TableName),
             {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
             DataTableNode = hm_router:lookup(Key), % data record is stored on this node in ?hm_global_table table
@@ -134,7 +144,7 @@ store(DomainName, TableName, KVList) ->
 %% Target Nodes: calculate from Key
 %%
 store_data(DTName, DataTableNode, KVList) ->
-    VList = lists:map(fun({Fld,Val}) -> Val end, KVList),
+    VList = lists:map(fun({_Fld,Val}) -> Val end, KVList),
     store_in_to(DataTableNode, ?hm_global_table, {DTName, VList}).
 %%
 %% @spec store_index(DTName::atom(), DataTableNode::atom(), 
@@ -149,11 +159,11 @@ store_data(DTName, DataTableNode, KVList) ->
 %% Data: {RouterName, [{Fld1, Value}, {Fld2, Value}, ...]}
 %% Table: DomainName ++ TableName
 store_index(DTNameTable, DataTableNode, IndexTableNode, KVList, AttList) ->
-    {ok, Row} = extract_kv_tuples(DTNameTable, KVList, AttList, true),
+    {ok, Row} = extract_kv_tuples(KVList, AttList, true),
     Vlist = 
         lists:foldl(
             fun
-                ({Fname,Value}, AccIn) ->
+                ({_Fname,Value}, AccIn) ->
                     AccIn ++ [Value]
             end, [], Row),
     store_in_to(IndexTableNode, DTNameTable, {DataTableNode, Vlist}).
@@ -161,10 +171,10 @@ store_index(DTNameTable, DataTableNode, IndexTableNode, KVList, AttList) ->
 %% retrieve tuples of fields with data
 %% KVFlag: true -> returns key-tuples list
 %% KVFlag: false -> returns data-tuples list
-extract_kv_tuples(DTName, KVList, AttList, KVFlag) ->
+extract_kv_tuples(KVList, AttList, KVFlag) ->
     DataFields = 
         lists:filter( 
-            fun({Fname, BoolVal, Init}) -> 
+            fun({_Fname, BoolVal, _Init}) -> 
                 case BoolVal =:= KVFlag of 
                     true -> true; 
                     false -> false 
@@ -193,7 +203,7 @@ extract_kv_tuples(DTName, KVList, AttList, KVFlag) ->
 calc_key_from_key_data(DTName, KVList, AttList) ->
     % retrieve tuples of key fields
     {ok, KeyList} = 
-        extract_kv_tuples(DTName, KVList, AttList, true),
+        extract_kv_tuples(KVList, AttList, true),
 
     % the value of the key fields must be list/string()
     Key = lists:foldl(fun
@@ -225,7 +235,7 @@ store_in_to(RouterName, TableName, {Key, Value}) ->
 
 % the successor list here includes target node itself, and
 % tail of successor list
-store_to_succlist([], TableName, Key, Value, {Len, Cnt}) -> 
+store_to_succlist([], _TableName, _Key, _Value, {Len, Cnt}) -> 
     case Len =:= Cnt of
         true -> {ok, Cnt};
         false -> 
@@ -242,11 +252,11 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
         undefined -> 
             % TODO: when fail to store data, or node is down, write logging to  
             %       another file and continue processing
-            ?debug_p("***ERROR*** store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n", 
+            ?error_p("store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n", 
                 store, [Key, TargetName]),
             NewCnt = Cnt;
         _Pid      -> 
-            ?debug_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
+            ?info_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
             Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
             case Reply of
                 true -> NewCnt = Cnt + 1;
@@ -265,49 +275,10 @@ get_from_succlist(Succlist, Key) ->
             get_from_succlist(tl(Succlist), Key);
         _Any ->
             Result = gen_server:call({global, TargetName}, {get, Key}),
-            ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
+            ?info_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of
                 0 -> get_from_succlist(tl(Succlist), Key);
                 _Any -> Result
-            end
-    end.
-
-
-
-get_from_succlist([], BagName, _Key) -> {error, nodata};
-get_from_succlist(Succlist, BagName, Key) ->
-    {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
-    case global:whereis_name(TargetName) of
-        undefined ->
-            get_from_succlist(tl(Succlist), BagName, Key);
-        _ ->
-            Result = gen_server:call({global, TargetName}, {get, BagName, Key}),
-            ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
-            case length(Result) of
-                0 -> 
-                    get_from_succlist(tl(Succlist), BagName, Key);
-                _ -> 
-                    Result
-            end
-    end.
-get_from_succlist([],      _BagName, _Key, _Cond) -> [{error, nodata}];
-get_from_succlist(Succlist, BagName, Key, Cond) ->
-    {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
-    case global:whereis_name(TargetName) of
-        undefined ->
-            get_from_succlist(tl(Succlist), BagName, Key, Cond);
-        _ ->
-            % get list of [{key, nodename},..]
-            Result = gen_server:call({global, TargetName}, {get, BagName, Key, Cond}),
-
-            ?debug_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
-            case length(Result) of
-                0 -> 
-                    get_from_succlist(tl(Succlist), BagName, Key, Cond);
-                _ -> 
-                    Result
             end
     end.
 
@@ -319,14 +290,14 @@ handle_cast(stop, State) ->
     {stop, normal, State}.
 
 handle_call({register_table, {TableName, TableId}}, _From, {RegName, TableList}) ->
-    ?debug_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, {TableName, TableId}]),
+    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, {TableName, TableId}]),
     {reply, {ok, register_table}, {RegName, [{TableName, TableId}|TableList]}};
 
-handle_call({get_table_info, DTName}, _From, {RegName, TableList}=State) ->
+handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TableList),
     {reply, ReplyData, State};
 
-handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {RegName, TableList}=State) ->
+handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, TableList}=State) ->
     case lists:keyfind(?hm_global_table, 1, TableList) of
         false -> {reply, {nb, no_global_table}, State};
         {_,Tid} ->
@@ -335,7 +306,7 @@ handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, 
             {reply, {ok, Reply}, State}
     end;
 
-handle_call({select_table, Tid, FlistModified, MS}, _From, {RegName, TableList}=State) ->
+handle_call({select_table, Tid, FlistModified, MS}, _From, State) ->
 
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, Reply}, State};
@@ -354,7 +325,7 @@ handle_call({get, TableId, Key}, _From, {RegName, GlobalTableId}) ->
     Reply = ets:lookup(TableId, Key),
     {reply, Reply, {RegName, GlobalTableId}};
 
-handle_call({get, TableName, Key, {Op,Val}=Cond}, _From, {RegName, GlobalTableId}) ->
+handle_call({get, TableName, _Key, {Op,Val}=_Cond}, _From, {RegName, GlobalTableId}) ->
     % list of {key, nodename}
     Reply = ets:select(TableName,[{ {'$1','$2'}, [ { Op, '$1', Val } ],['$_'] }]),
     {reply, Reply, {RegName, GlobalTableId}}.

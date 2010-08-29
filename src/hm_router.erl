@@ -2,8 +2,16 @@
 -behaviour(gen_server).
 -vsn('0.1').
 
--export([start/1, stop/0, stop/1, 
-         lookup/1, state_info/1, state_info/2, name/1]).
+-export([
+        lookup/1, 
+        name/1,
+        start/1, 
+        start_link/1,
+        state_info/1, 
+        state_info/2, 
+        stop/0, 
+        stop/1 
+        ]).
 -export([start_link/1]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
@@ -71,7 +79,7 @@ handle_cast(stop, State) -> {stop, normal, State};
 handle_cast({find_successor_ask_other, NodeVector, From}, State) ->
     RetVal = find_successor_in(NodeVector, State),
 
-    ?debug_p("find_successor_ask_other: RetVal:[~p] NodeVector:[~p] From:[~p] ~n", 
+    ?info_p("find_successor_ask_other: RetVal:[~p] NodeVector:[~p] From:[~p] ~n", 
             State#state.node_name, [RetVal, NodeVector, From]),
     case RetVal of
         {found, NewSucc} ->
@@ -117,10 +125,10 @@ handle_cast({notify, NodeInfo}, State) ->
 
 handle_cast({stabilize, nil}, State) ->
     % if successor has no predecessor, skip
-    ?debug_p("stabilize:called:[~p].~n", State#state.node_name, [State]),
+    ?info_p("stabilize:called:[~p].~n", State#state.node_name, [State]),
     {noreply, State};
 handle_cast({stabilize, {PredName, PredVector} = _PredOfSucc}, State) ->
-    ?debug_p("stabilize:called:[~p].~n", State#state.node_name, [State]),
+    ?info_p("stabilize:called:[~p].~n", State#state.node_name, [State]),
     % check if new successor exists
     {_SuccName, SuccVector} = hm_misc:get_successor(State),
     case hm_misc:is_between(State#state.node_vector, 
@@ -157,7 +165,7 @@ handle_call({find_successor, NodeVector, CurrentFix}, From, State) ->
         end,
 
     RetVal = find_successor_in(NodeVector, State),
-    ?debug_p("find_successor: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
+    ?info_p("find_successor: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
             State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
 
     return_successor_info(find_successor, RetVal, NodeVector, From, NewState);
@@ -174,13 +182,13 @@ handle_call({find_successor_with_succlist, NodeVector, CurrentFix}, From, State)
         end,
 
     RetVal = find_successor_in(NodeVector, State),
-    ?debug_p("find_successor_with_succlist: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
+    ?info_p("find_successor_with_succlist: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
             State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
 
     return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, NewState);
 
 handle_call(copy_succlist, _From, State) ->
-    ?debug_p("copy_succlist:succlist:[~p].~n", State#state.node_name, [State#state.succlist]),
+    ?info_p("copy_succlist:succlist:[~p].~n", State#state.node_name, [State#state.succlist]),
     {reply, State#state.succlist, State};
 
 handle_call(get_predecessor, _From, State) ->
@@ -203,7 +211,7 @@ find_successor_in(NodeVector, State) ->
                              SuccVector) of
         % the successor of NodeVector is this node
         true  -> 
-            ?debug_p("find_successor_in: Succ:[~p].~n", State#state.node_name, [Succ]),
+            ?info_p("find_successor_in: Succ:[~p].~n", State#state.node_name, [Succ]),
             {found, {Succ, SuccVector}};
 
         % my successor is not the successor of NodeVector,
@@ -212,10 +220,10 @@ find_successor_in(NodeVector, State) ->
             case ask_closest_predecessor(State, NodeVector) of
                 {exists_in_local, TargetNode} -> 
                     % I'm successor of NodeVector
-                    ?debug_p("find_successor_in: TargetNode:[~p].~n", State#state.node_name, [TargetNode]),
+                    ?info_p("find_successor_in: TargetNode:[~p].~n", State#state.node_name, [TargetNode]),
                     {found, TargetNode};
                 {not_exists_in_local, InqNode} -> 
-                    ?debug_p("find_successor_in: InqNode:[~p].~n", State#state.node_name, [InqNode]),
+                    ?info_p("find_successor_in: InqNode:[~p].~n", State#state.node_name, [InqNode]),
                     {not_found, InqNode}
             end
     end.
@@ -224,7 +232,7 @@ ask_closest_predecessor(State, NodeVector) ->
     case hm_misc:closest_predecessor(State, NodeVector) of
         % no info available
         nil -> 
-            ?debug_p("ask_closest_pred: NodeVector(returning my name):[~p].~n",
+            ?info_p("ask_closest_pred: NodeVector(returning my name):[~p].~n",
                 State#state.node_name, [NodeVector]),
             
             NewSucc = {exists_in_local, 
@@ -232,7 +240,7 @@ ask_closest_predecessor(State, NodeVector) ->
 
         % ask this closest pred to *other* node(need to pass nil)
         {RetNodeName, RetNodeVector} ->  
-            ?debug_p("ask_closest_pred: RetNodeName:[~p] RetNodeVector:[~p] NodeVector:[~p].~n",
+            ?info_p("ask_closest_pred: RetNodeName:[~p] RetNodeVector:[~p] NodeVector:[~p].~n",
                 State#state.node_name, [RetNodeName, RetNodeVector, NodeVector]),
             NewSucc = {not_exists_in_local, {RetNodeName, RetNodeVector}}
     end,

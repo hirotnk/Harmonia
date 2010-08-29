@@ -12,9 +12,10 @@
   {mod, {harmonia, []}},
   {start_phases, []},
   {env, [
-      {type, create_or_join},
+      {node_type, create_or_join},
       {name, noname},
-      {root, foo}
+      {root, foo},
+      {logfile, "./harmonia_log.txt"}
   ]}
  ]}.
 

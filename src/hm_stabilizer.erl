@@ -2,18 +2,22 @@
 -behaviour(gen_fsm).
 -vsn('0.1').
 
--export([start_link/1, stop/1, stabilize_loop/2, fixfinger_loop/2, name/1]).
+-export([
+        fixfinger_loop/2, 
+        name/1,
+        stabilize_loop/2, 
+        start_link/1, 
+        stop/1 
+        ]).
 -export([init/1, terminate/3]).
 
 -include("harmonia.hrl").
-
-
 
 start_link(RegName) ->
     gen_fsm:start_link({global, name(RegName)}, ?MODULE, RegName, []).
 
 stop(RegName) ->
-    ?debug_p("stop:stopping:[~p].~n", RegName, [RegName]),
+    ?info_p("stop:stopping:[~p].~n", RegName, [RegName]),
     gen_fsm:send_event({global, name(RegName)}, stop).
 
 terminate(_Reason, _StateName, _State) -> ok.
@@ -34,9 +38,9 @@ stabilize_loop(timeout, RegName) ->
     % node is checked to be alive inside get_successor
     {ok, State} = gen_server:call({global, hm_router:name(RegName)}, state_info),
     Succ = hm_misc:get_successor_alive(State),
-    ?debug_p("stabilize_loop:SuccName:[~p].~n", RegName, [Succ]),
+    ?info_p("stabilize_loop:SuccName:[~p].~n", RegName, [Succ]),
 
-    {NodeName, NodeVector} = 
+    {NodeName, _NodeVector} = 
         case Succ of
             % currently no successor
             {error, no_successor} -> 
@@ -46,13 +50,13 @@ stabilize_loop(timeout, RegName) ->
             {error, successor_dead} -> 
                 case hm_misc:get_first_alive_entry(tl(State#state.succlist)) of
                     {error, none} -> 
-                        ?debug_p("stabilize_loop:{error, none}.~n", RegName, []),
+                        ?error_p("stabilize_loop:{error, none}.~n", RegName, []),
                         {State#state.node_name, State#state.node_vector};
 
                     % if successor is dead and there is some alive successor,
                     % build a new successor list
                     {NewSucc, NewSuccVector} -> 
-                        ?debug_p("stabilize_loop:NewSucc:[~p] NewSuccVector:[~p].~n", RegName, 
+                        ?info_p("stabilize_loop:NewSucc:[~p] NewSuccVector:[~p].~n", RegName, 
                                [NewSucc, NewSuccVector]),
                         make_succ_list({NewSucc, NewSuccVector}, hm_router:name(RegName)),
 
@@ -87,7 +91,7 @@ make_succ_list({SuccName, SuccVector}, MyNodeName) ->
             true -> lists:sublist(SuccList, 1, ?succ_list_len);
             false -> SuccList
         end,
-    ?debug_p("stabilize_loop:Updated SuccList:[~p].~n", MyNodeName, [NewSuccList]),
+    ?info_p("stabilize_loop:Updated SuccList:[~p].~n", MyNodeName, [NewSuccList]),
     gen_server:cast({global, MyNodeName}, {set_succlist, NewSuccList}).
 
 
@@ -95,7 +99,7 @@ fixfinger_loop(stop, RegName) ->
     {stop, normal, RegName};
 
 fixfinger_loop(timeout, RegName) ->
-    ?debug_p("fixfinger_loop:[~p].~n", RegName, [RegName]),
+    ?info_p("fixfinger_loop:[~p].~n", RegName, [RegName]),
 
     {ok, State} = gen_server:call({global, hm_router:name(RegName)}, state_info),
 
@@ -112,7 +116,7 @@ fixfinger_loop(timeout, RegName) ->
     NewSucc = gen_server:call({global, hm_router:name(RegName)}, {find_successor, NodeVector, Current}),
 
     % this only does replace my finger's Current-th entry
-    ?debug_p("fixfinger_loop:Current:[~p], NewSucc:[~p], NodeVector:[~p], State#state.finger:[~p].~n", 
+    ?info_p("fixfinger_loop:Current:[~p], NewSucc:[~p], NodeVector:[~p], State#state.finger:[~p].~n", 
                 RegName, [Current, NewSucc, NodeVector, State#state.finger]),
     gen_server:cast({global, hm_router:name(RegName)}, {fix_finger, Current, NewSucc, State#state.finger}),
     {next_state, stabilize_loop, RegName, ?fixfinger_interval}.

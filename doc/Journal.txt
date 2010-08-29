@@ -3,12 +3,14 @@ TODO:
 1. make the load of harmonoa.erl module as light as possible
 2. make the module to workout both in local/global mode
 3. write out the test modules
-4. deal with logging
-5. add data migration process: harmonia_data_migrate.erl
+4. add data migration process: harmonia_data_migrate.erl
+5. add data store method switch mechanism(ets/dets/mnesia...)
 
+
+TODO:2010-8-29
 TODO:2010-8-27
-1. add event_logger
-2. add config system file
+OK: 1. add event_logger
+OK: 2. add config system file
 3. test script
 4. parallel select
 
