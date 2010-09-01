@@ -105,6 +105,7 @@ Another example of get data with range query
 h2. Algorithm
 
 Harmonia is based on Chord algorithm, and it builds index on top of that, hence provides range query function.
+Ref: "http://pdos.csail.mit.edu/chord/":http://pdos.csail.mit.edu/chord/
 
 h2. Author
 
