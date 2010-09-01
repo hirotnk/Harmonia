@@ -14,6 +14,9 @@
 % Interval of fixfingers
 -define(fixfinger_interval, 3000).
 
+% get timeout
+-define(TIMEOUT_GET, 30000).
+
 % Length of finger table
 -define(max_finger, ?key_bit_length). 
 

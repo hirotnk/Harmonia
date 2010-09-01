@@ -13,6 +13,10 @@
         store/2,
         store/3
         ]).
+-export([
+        gather_get/4,
+        lookup_data_table_solo/6
+        ]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
@@ -30,7 +34,8 @@ stop() ->
 stop(RegName) ->
     gen_server:cast({global, name(RegName)}, stop).
 
-terminate(_Reason, _State) -> ok.
+terminate(_Reason, _State) ->
+    ok.
 
 get(Key) ->
     TargetName = hm_router:lookup(Key),
@@ -40,11 +45,24 @@ get(Key) ->
 
 
 %% @spec(store(Key::atom(), Value::any() ) -> {ok, Cnt::integer()} | 
-%%                                           {partial, Cnt::integer()}
-%%                                           {ng, Msg::string} |
+%%                                            {partial, Cnt::integer()} |
+%%                                            {ng, Msg::string}
 store(Key, Value) ->
     store_in(?hm_global_table, Key, Value).
 
+gather_get(0,   Pid, Ref, ResList) -> 
+    ?info_p("gather_get OK:ResList:[~p]~n", gather_get, [ResList]),
+    Pid ! {ok, Ref, ResList};
+gather_get(Cnt, Pid, Ref, ResList) ->
+    receive
+        {ok, Ref, RowList} ->
+            gather_get( Cnt - 1, Pid, Ref, [RowList|ResList] );
+        {error, Ref, Msg} ->
+            ?error_p("gather_get Error:Msg:[~p]~n", gather_get, [Msg]),
+            gather_get( Cnt - 1, Pid, Ref, ResList )
+    after ?TIMEOUT_GET ->
+        Pid ! {error, Ref, timeout}
+    end.
 
 get(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
@@ -53,17 +71,56 @@ get(DomainName, TableName, Cond) ->
         {ok, DataNodeList, AttList, [MS]} ->
 
             {_, Flist} = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
-            case lookup_data_table(DataNodeList, DTName, Flist, MS, []) of
-                {ok, RecordList} -> {ok, RecordList};
-                {error, Msg} -> {error, Msg} 
+
+            NodeCnt = length(DataNodeList), Ref = make_ref(),
+
+            % spawn a gathering process
+            LoopPid = 
+                spawn_link(
+                    ?MODULE, 
+                    gather_get, 
+                    [NodeCnt, self(), Ref, []]
+                ),
+
+            % spawn a process for each node
+            lists:foreach(
+                   fun(El) -> 
+                        spawn_link(
+                            ?MODULE, 
+                            lookup_data_table_solo, 
+                            [El, DTName, Flist, MS, LoopPid, Ref]
+                        )
+                   end, 
+                   DataNodeList
+            ),
+            receive
+                {ok, Ref, Result} -> {ok, Result};
+                {error, Ref, Msg} -> {error, Msg} 
+            after ?TIMEOUT_GET ->
+                ?error_p("get timeout :DomainName:[~p] TabName:[~p] Cond:[~p]~n",
+                        get, [DomainName, TableName, Cond])
             end;
         {error, Msg} -> {error, Msg}
     end.
 
+lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) ->
+    DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
+
+    case hm_misc:is_alive(DataNodeName) of
+        false -> 
+            ?warning_p("DataNode Not Alive : Node:[~p].~n", none, [DataNodeName]),
+            LoopPid ! {error, Ref, node_not_alive};
+        true ->
+            {ok, RowList} = 
+                gen_server:call(
+                    {global, DataNodeName}, 
+                    {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}
+                ),
+            LoopPid ! {ok, Ref, RowList}
+    end.
+
 make_select_cond(AttList, Cond, Fun) ->
-    {_, FlistModified} = 
-            lists:foldl(Fun,
-            {1,[]}, AttList),
+    {_, FlistModified} = lists:foldl(Fun, {1,[]}, AttList),
     MS = hm_qp:parse(hm_qp:scan(Cond, AttList)),
     {ok, FlistModified, MS}.
 
@@ -95,23 +152,29 @@ fun_for_index({_Fname, Bool, _},{N,FList}) ->
         false -> {N, FList}
     end.
 
-fun_for_data(_T,{N,Flist}) -> {N+1, Flist ++ [list_to_atom("$" ++ integer_to_list(N+1))]}.
+fun_for_data(_T,{N,Flist}) ->
+    {N+1, Flist ++ [list_to_atom("$" ++ integer_to_list(N+1))]}.
 
-lookup_data_table([], _DTNameTable, _FlistModified, _MS, RecList) -> {ok, RecList};
+lookup_data_table([], _DTNameTable, _FlistModified, _MS, RecList) ->
+    {ok, RecList};
 lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     NodeName = hd(UniqNodeList),
     DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
 
     case hm_misc:is_alive(DataNodeName) of
         false -> 
-            % TODO: make this case partial error: {error, no_node_available};
+            ?warning_p("DataNode Not Alive : Node:[~p].~n", none, [DataNodeName]),
             lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, RecList);
         true ->
             {ok, RowList} = 
-                gen_server:call({global, DataNodeName}, {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}),
+                gen_server:call(
+                    {global, DataNodeName}, 
+                    {select_table, ?hm_global_table, DTNameTable, FlistModified, MS}
+                ),
             NewRecList = RecList ++ RowList,
             lookup_data_table(tl(UniqNodeList), DTNameTable, FlistModified, MS, NewRecList)
     end.
+
 
 store(DomainName, TableName, KVList) ->
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),

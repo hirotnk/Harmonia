@@ -5,6 +5,17 @@ TODO:
 3. write out the test modules
 4. add data migration process: harmonia_data_migrate.erl
 5. add data store method switch mechanism(ets/dets/mnesia...)
+6. need to deal with hidden node(how to do it)
+7. name server should return random node?
+
+TODO:2010-9-1
+OK: 1. parallel select
+2. test modules
+3. hidden node
+4. read me update
+5. name server returns random node?
+
+Blog update
 
 
 TODO:2010-8-29
