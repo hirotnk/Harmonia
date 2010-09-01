@@ -25,13 +25,14 @@ SOURCE = harmonia.erl \
 	hm_event_mgr.erl \
 	hm_log_h_file.erl \
 	hm_log_h_term.erl \
-	hm_qp.erl
+	hm_qp.erl \
+	hm_cli.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
 CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 
 
 $(EBIN)/%.beam: %.erl
-	/usr/bin/erlc  $(EDBG) -W -b beam -o $(EBIN) $(EFLAGS) $<
+	/usr/bin/erlc  $(EDBG) -W3 -v -b beam -o $(EBIN) $(EFLAGS) $<
 
 all: $(TARGETS)
 	cp harmonia.app ../ebin/harmonia.app

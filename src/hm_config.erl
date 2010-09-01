@@ -27,13 +27,13 @@ handle_cast(stop, State) ->
 
 handle_call({get, Key}, _From, Env) ->
     Reply = 
-        case proplist:get_value(Key, Env) of 
+        case proplists:get_value(Key, Env) of 
             undefined -> {error, key_undefined};
             Value -> {ok, {Key, Value}}
         end,
     {reply, Reply, Env}.
 
 get(Key) ->
-    {ok, _Value} = gen_server:call({local, ?MODULE}, {get, Key}).
+    {ok, _Value} = gen_server:call(?MODULE, {get, Key}).
     
 name(RegName) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(RegName)).
