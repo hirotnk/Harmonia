@@ -12,7 +12,6 @@
         stop/0, 
         stop/1 
         ]).
--export([start_link/1]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
 
 -include("harmonia.hrl").
@@ -23,15 +22,17 @@ start(NodeNameList) ->
     start(tl(NodeNameList)).
 
 start_link({create, RegName}) ->
-    gen_server:start_link({global, 
-                           name(RegName)}, 
-                           ?MODULE, 
-                           {create, RegName}, []);
+    gen_server:start_link(
+        {global, name(RegName)}, 
+        ?MODULE, 
+        {create, RegName}, []
+    );
 start_link({join, RegName, RootName}) ->
-    gen_server:start_link({global, 
-                           name(RegName)}, 
-                           ?MODULE, 
-                           {{join, RootName}, RegName}, []).
+    gen_server:start_link(
+        {global, name(RegName)}, 
+        ?MODULE, 
+        {{join, RootName}, RegName}, []
+    ).
 
 stop() ->
     gen_server:cast(?MODULE, stop).
@@ -48,7 +49,11 @@ terminate(_Reason, _State) ->
 lookup(Key) ->
     KeyVector = hm_misc:get_digest_from_atom(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
-    {SuccName, _} = gen_server:call({global, name(RegName)}, {find_successor, KeyVector, nil}),
+    {SuccName, _} = gen_server:call(
+                        {global, name(RegName)}, 
+                        {find_successor,
+                        KeyVector, nil}
+                    ),
     SuccName.
 
 state_info(RegName) ->
@@ -156,36 +161,16 @@ handle_cast(check_pred, State) ->
 
 
 handle_call({find_successor, NodeVector, CurrentFix}, From, State) ->
-
-    % when inquired by other, 'CurrentFix' should not be modified
-    NewState = 
-        case CurrentFix of
-            nil -> State; % inquired by other, no change to current_fix
-            _   -> State#state{current_fix = CurrentFix} % inquired by self-stabilizer
-        end,
-
-    RetVal = find_successor_in(NodeVector, State),
-    ?info_p("find_successor: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
-            State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
-
-    return_successor_info(find_successor, RetVal, NodeVector, From, NewState);
+    find_successor_handle_call_in(
+        find_successor, 
+        NodeVector, CurrentFix, From, State
+    );
 
 handle_call({find_successor_with_succlist, NodeVector, CurrentFix}, From, State) ->
-
-    % when inquired by other, 'CurrentFix' should not be modified
-    NewState = 
-        case CurrentFix of
-            nil -> % inquired by other
-                State;
-            _   -> % inquired by self-stabilizer
-                State#state{current_fix = CurrentFix}
-        end,
-
-    RetVal = find_successor_in(NodeVector, State),
-    ?info_p("find_successor_with_succlist: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
-            State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
-
-    return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, NewState);
+    find_successor_handle_call_in(
+        find_successor_with_succlist,
+        NodeVector, CurrentFix, From, State
+    );
 
 handle_call(copy_succlist, _From, State) ->
     ?info_p("copy_succlist:succlist:[~p].~n", State#state.node_name, [State#state.succlist]),
@@ -203,6 +188,24 @@ handle_call(state_info, _From, State) ->
 
 
 name(Name) -> list_to_atom("hm_router_" ++ atom_to_list(Name)).
+
+find_successor_handle_call_in(Handlecall_Key, NodeVector, CurrentFix, From, State) ->
+    % when inquired by other, 'CurrentFix' should not be modified
+    NewState = 
+        case CurrentFix of
+            nil -> State; % inquired by other, no change to current_fix
+            _   -> State#state{current_fix = CurrentFix} % inquired by self-stabilizer
+        end,
+    case NodeVector =:= State#state.node_vector of 
+        % when node vector == current node, return current node
+        true ->
+            {reply, {State#state.node_name, State#state.node_vector}, NewState};
+        false ->
+            RetVal = find_successor_in(NodeVector, State),
+            ?info_p("~p: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
+                    State#state.node_name, [Handlecall_Key, RetVal, NodeVector, CurrentFix, From]),
+            return_successor_info(Handlecall_Key, RetVal, NodeVector, From, NewState)
+    end.
 
 find_successor_in(NodeVector, State) ->
     {Succ, SuccVector} = hd(State#state.finger),
@@ -247,21 +250,17 @@ ask_closest_predecessor(State, NodeVector) ->
     NewSucc.
 
 
-return_successor_info(find_successor, RetVal, NodeVector, From, NewState) ->
-    case RetVal of
-        {found, NewSucc} -> {reply, NewSucc, NewState};
-        {not_found, {InqNode, _InqVector}} ->
-            % ask to InqNode about NodeVector
-            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From}),
-            {noreply, NewState}
-    end;
-return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, NewState) ->
+return_successor_info(Key, RetVal, NodeVector, From, NewState) ->
     case RetVal of
         {found, NewSucc} -> 
-            {reply, {NewSucc, NewState#state.succlist}, NewState};
+            return_successor_info_in(Key, NewSucc, NewState);
         {not_found, {InqNode, _InqVector}} ->
             % ask to InqNode about NodeVector
             gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From}),
             {noreply, NewState}
     end.
 
+return_successor_info_in(find_successor, NewSucc, NewState) ->
+    {reply, NewSucc, NewState};
+return_successor_info_in(find_successor_with_succlist, NewSucc, NewState) ->
+    {reply, {NewSucc, NewState#state.succlist}, NewState}.

@@ -10,6 +10,7 @@ TODO:
 
 TODO:2010-9-1
 OK: 1. parallel select
+added client I/F module
 2. test modules
 3. hidden node
 4. read me update

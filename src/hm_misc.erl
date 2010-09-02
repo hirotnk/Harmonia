@@ -48,7 +48,7 @@ closest_predecessor_in(LocalVector, NodeVector, FingerList, Pred) ->
     case is_between(LocalVector, FingerVector, NodeVector) of
         true -> {FingerName, FingerVector};
 
-        % seems to need to include predecessor to be judged
+        % seems it needs to include predecessor to be judged
         % otherwise, finger table won't get correct?
         false -> 
             {PredName, PredVector} = Pred,

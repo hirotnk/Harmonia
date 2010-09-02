@@ -8,6 +8,7 @@
 
 
 start() -> supervisor:start_link({global, ?MODULE}, ?MODULE, {}).
+start_shell() -> supervisor:start({global, ?MODULE}, ?MODULE, {}).
 stop() -> exit(global:whereis_name(?MODULE), kill).
 
 init(_) -> 

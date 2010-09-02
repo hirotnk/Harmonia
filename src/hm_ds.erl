@@ -322,8 +322,11 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
             ?info_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
             Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
             case Reply of
-                true -> NewCnt = Cnt + 1;
-                false -> NewCnt = Cnt
+                {ok, _Msg} -> NewCnt = Cnt + 1;
+                {error, {store, Msg}} -> 
+                    ?error_p("store_to_succlist:~p undefined ~nKey:[~p] TargetName:[~p].~n", 
+                        store, [Msg, Key, TargetName]),
+                    NewCnt = Cnt
             end
     end,
     store_to_succlist(tl(SuccList), TableName, Key, Value, {Len, NewCnt}).
@@ -380,8 +383,8 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
         false -> 
             {reply, {error, {store, no_table_found}}, {RegName, TableList}};
         {TableName, TableId} ->
-            Ret = ets:insert(TableId, {Key, Value}),
-            {reply, Ret, {RegName, TableList}}
+            _Ret = ets:insert(TableId, {Key, Value}), % ets:insert always return true
+            {reply, {ok, insert}, {RegName, TableList}}
     end;
 
 handle_call({get, TableId, Key}, _From, {RegName, GlobalTableId}) ->
