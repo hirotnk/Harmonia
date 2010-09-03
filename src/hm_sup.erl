@@ -34,22 +34,6 @@ start_link(Env) ->
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
 join(Name, RootName, Env) -> supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}).
 
-init([]) -> 
-    {ok, { {one_for_one, 5, 2000}, % restart taple
-            [
-                  {?name_server,   % Name
-                      {            % Start Function
-                          ?name_server,    % Module
-                          start_link,      % Function
-                          []               % Arg
-                      }, 
-                      permanent,   % restart type 
-                      brutal_kill, % Shutdown time
-                      worker,        % Process type
-                      [?name_server]     % Modules
-                  }
-            ]
-          } };
 init({{create, Name}          = Arg, Env}) -> create_children(create, Arg, Name, Env);
 init({{join, Name, _RootName} = Arg, Env}) -> create_children(join,   Arg, Name, Env).
 
