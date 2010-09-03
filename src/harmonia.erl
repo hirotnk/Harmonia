@@ -1,11 +1,3 @@
-%% start shell command:
-%%  root node:
-%%    erl -pa ebin -config harmonia -harmonia node_type 'create' -harmonia name foo
-%%  join node:
-%%    erl -pa ebin -config harmonia -harmonia node_type 'join' -harmonia name <name> - harmonia root <root name>
-%%
-%%
-
 -module(harmonia).
 -behaviour(application).
 

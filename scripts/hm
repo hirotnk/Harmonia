@@ -1,0 +1,115 @@
+#!/bin/sh
+
+DEFAULT_COOKIE_NAME=harmonia_cookie
+
+opt_node_type=
+opt_root=
+opt_name=
+opt_sname=
+opt_cookie=
+opt_detatched=
+opt_root_node=
+
+
+usage () {
+    echo "Usage: hm -t [create|[join -r root_name]] -n name -s sname@node -w root_node@node[-c cookievalue]" 
+}
+usage2 () {
+    usage >&2
+    exit 2
+}
+
+if [ -z "$HARMONIA_HOME" ]; then
+    HARMONIA_HOME=`pwd`
+fi
+HM_EBIN="$HARMONIA_HOME/ebin"
+
+
+while getopts 'dt:r:n:s:c:w:' flag
+do
+    case $flag in
+        t) opt_node_type="$OPTARG"
+        ;;
+        d) opt_detatched="1"
+        ;;
+        r) opt_root="$OPTARG"
+        ;;
+        n) opt_name="$OPTARG"
+        ;;
+        s) opt_sname="$OPTARG"
+        ;;
+        c) opt_cookie="$OPTARG"
+        ;;
+        w) opt_root_node="$OPTARG"
+        ;;
+        ?) usage2
+        ;;
+    esac
+done
+
+
+hm_node_type=${opt_node_type}
+if [ "$hm_node_type" != "join" -a "$hm_node_type" != "create" ]; then
+    echo "Node type must be '-t join' or '-t create'" >&2
+    usage2
+fi
+hm_root=${opt_root}
+if [ "$hm_node_type" = "join" -a  -z "$hm_root" ]; then
+    echo "Need to specify root name" >&2
+    usage2
+fi
+hm_root_node=${opt_root_node}
+if [ "$hm_node_type" = "join" -a  -z "$hm_root_node" ]; then
+    echo "Need to specify root node" >&2
+    usage2
+fi
+hm_name=${opt_name}
+if [ -z "$hm_name" ]; then
+    echo "Need to specify name" >&2
+    usage2
+fi
+hm_sname=${opt_sname}
+if [ -z "$hm_sname" ]; then
+    echo "Need to specify short name of the node" >&2
+    usage2
+fi
+
+hm_cookie=${opt_cookie:-"$DEFAULT_COOKIE_NAME"}
+hm_detatched=${opt_detatched:+"-detached"}
+
+#  +A size
+#      Sets the number of threads in async thread pool, valid range is 0-1024. Default is 0.
+#  +K true | false
+#      Enables or disables the kernel poll functionality if the emulator supports it. 
+#      Default is false (disabled). If the emulator does not support kernel poll, 
+#      and the +K flag is passed to the emulator, a warning is issued at startup.
+#  +P Number
+#      Sets the maximum number of concurrent processes for this system. Number must be in 
+#      the range 16..134217727. Default is 32768.
+
+if [ "$opt_node_type" = "create" ]; then
+
+erl -pa $HM_EBIN \
+    -sname $hm_sname \
+    ${hm_detatched} \
+    -setcookie $hm_cookie \
+    -config harmonia \
+    -run hm_startup start \
+    -harmonia node_type $hm_node_type \
+              name $hm_name \
+              sname $hm_sname 
+
+else
+
+erl -pa $HM_EBIN \
+    -sname $hm_sname \
+    -setcookie $hm_cookie \
+    ${hm_detatched} \
+    -config harmonia \
+    -run hm_startup start \
+    -harmonia node_type $hm_node_type \
+              root $hm_root \
+              name $hm_name \
+              sname $hm_sname \
+              root_node $hm_root_node
+fi

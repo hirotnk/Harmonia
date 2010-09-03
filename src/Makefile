@@ -8,6 +8,7 @@
 #Compiles the code into a ebin dir. relative to the source dir. 
 EBIN = ../ebin
 EDBG = -Ddebug
+CFLG = -W +warn_unused_vars +warn_unused_import +debug_info 
 ERL = erl
 GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
@@ -26,19 +27,20 @@ SOURCE = harmonia.erl \
 	hm_log_h_file.erl \
 	hm_log_h_term.erl \
 	hm_qp.erl \
+	hm_startup.erl \
 	hm_cli.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
 CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 
 
 $(EBIN)/%.beam: %.erl
-	/usr/bin/erlc  $(EDBG) -W3 -v -b beam -o $(EBIN) $(EFLAGS) $<
+	/usr/bin/erlc  $(EDBG) $(CFLG) -v -b beam -o $(EBIN) $(EFLAGS) $<
 
 all: $(TARGETS)
 	cp harmonia.app ../ebin/harmonia.app
 
 debug: $(TARGETS)
-	/usr/bin/erlc -Ddebug -W -b beam -o $(EBIN) $(EFLAGS) $<
+	/usr/bin/erlc $(EDBG) $(CFLG) -v -b beam -o $(EBIN) $(EFLAGS) $<
    
 clean:
 	\rm -f $(CODE) 

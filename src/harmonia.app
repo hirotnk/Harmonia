@@ -14,7 +14,9 @@
   {env, [
       {node_type, create_or_join},
       {name, noname},
+      {sname, node_name},
       {root, foo},
+      {root_node, foo@node},
       {logfile, "./harmonia_log.txt"}
   ]}
  ]}.

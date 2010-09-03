@@ -22,17 +22,9 @@ start(NodeNameList) ->
     start(tl(NodeNameList)).
 
 start_link({create, RegName}) ->
-    gen_server:start_link(
-        {global, name(RegName)}, 
-        ?MODULE, 
-        {create, RegName}, []
-    );
+    gen_server:start_link( {global, name(RegName)}, ?MODULE, {create, RegName}, []);
 start_link({join, RegName, RootName}) ->
-    gen_server:start_link(
-        {global, name(RegName)}, 
-        ?MODULE, 
-        {{join, RootName}, RegName}, []
-    ).
+    gen_server:start_link( {global, name(RegName)}, ?MODULE, {{join, RootName}, RegName}, []).
 
 stop() ->
     gen_server:cast(?MODULE, stop).
@@ -66,17 +58,17 @@ init({Op, RegName}) ->
     NodeName = name(RegName),
     NodeVector = hm_misc:get_digest_from_atom(NodeName),
     State = #state{node_name = NodeName, node_vector = NodeVector},
-    case Op of 
-        create -> 
-            NewState = State#state{finger = [{NodeName, NodeVector}]};
-
-        {join, RootNodeName} ->
-            NewSucc = gen_server:call({global, name(RootNodeName)}, 
-                                      {find_successor, NodeVector, nil}),
-            NewState = State#state{finger = [NewSucc]}
-    end,
-    {ok, RegName} = gen_server:call({global, ?name_server}, {register_name, RegName}),
-
+    NewState = 
+        case Op of 
+            create -> 
+                State#state{finger = [{NodeName, NodeVector}]};
+            {join, RootNodeName} ->
+                NewSucc = gen_server:call(
+                              {global, name(RootNodeName)}, 
+                              {find_successor, NodeVector, nil}
+                          ),
+                State#state{finger = [NewSucc]}
+        end,
     {ok, NewState}.
 
 handle_cast(stop, State) -> {stop, normal, State};
