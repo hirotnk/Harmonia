@@ -41,6 +41,7 @@ create_children(Type, Arg, Name, Env) ->
     ServerListTmp = 
         [
             child(hm_config,     hm_config,     [Env], worker),
+            child(hm_config_if,  hm_config_if,  [{Name, Env}], worker),
             child(hm_event_mgr,  gen_event,     [{local, hm_event_mgr}], worker),
             child(hm_router,     hm_router,     [Arg],  worker),
             child(hm_stabilizer, hm_stabilizer, [Name], worker),

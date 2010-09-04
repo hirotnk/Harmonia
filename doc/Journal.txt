@@ -9,6 +9,7 @@ TODO:
 7. name server should return random node?
 
 TODO:2010-9-2
+OK: start-up mechanism
 1. test modules
 2. hidden node
 3. read me update

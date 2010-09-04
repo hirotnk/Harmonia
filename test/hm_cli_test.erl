@@ -2,18 +2,8 @@
 -export([
         get/1,
         store/1,
-        make_table/0,
-        test_name_server/0
+        make_table/0
         ]).
-
-loop() ->
-   spawn(hm_name_sup, start, []),
-   receive
-       none_ -> none_
-   end.
-
-test_name_server() ->
-   spawn(?MODULE, loop, []). 
 
 make_table() ->
     Domain = "Domain1",

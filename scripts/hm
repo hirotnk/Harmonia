@@ -12,7 +12,7 @@ opt_root_node=
 
 
 usage () {
-    echo "Usage: hm -t [create|[join -r root_name]] -n name -s sname@node -w root_node@node[-c cookievalue]" 
+    echo "Usage: hm -t [create|[join -r root_name -w root_node@node]] -n name -s sname@node [-c cookievalue]" 
 }
 usage2 () {
     usage >&2
