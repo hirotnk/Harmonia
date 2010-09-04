@@ -10,7 +10,6 @@
 
 -include("harmonia.hrl").
 -define(connect_try, 3).
-%% -define(NAME_SUP, hm_name_server_sup)
 
 start_link(Env) -> 
     Name = proplists:get_value(name, Env),
@@ -28,7 +27,7 @@ start_link(Env) ->
             Any ->
                 io:format("ERR:~p\n", [Any])
         end,
-    {ok, Name} = gen_server:call({global, ?name_server}, {register_name, Name}),
+    {ok, {Name, NodeName}} = gen_server:call({global, ?name_server}, {register_name, {Name, NodeName}}),
     {ok, Pid}.
 
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).

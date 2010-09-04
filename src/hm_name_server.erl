@@ -23,7 +23,7 @@ handle_cast(stop, State) ->
 handle_call(get_name_list, _From, State) ->
     {reply, {ok, State}, State};
 
-handle_call({register_name, RegName}, _From, State) ->
-    {reply, {ok, RegName}, [RegName|State]}.
+handle_call({register_name, {RegName, NodeName}=NewNode}, _From, State) ->
+    {reply, {ok, NewNode}, [NewNode|State]}.
 
 name(RegName) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(RegName)).

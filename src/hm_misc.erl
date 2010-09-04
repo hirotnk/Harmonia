@@ -91,10 +91,12 @@ is_between2(From, Target, To) when From  >  To ->
 
 get_rand_procname() ->
     {ok, ProcList} = gen_server:call({global, ?name_server}, get_name_list),
+    {Name, _NodeName} = 
     case length(ProcList) of 
         0 -> {error, instance};
-        N -> {ok, lists:nth(random:uniform(N), ProcList)}
-    end.
+        N -> lists:nth(random:uniform(N), ProcList)
+    end,
+    {ok, Name}.
 
 get_first_alive_entry([]) -> {error, none};
 get_first_alive_entry([{Name, _Vector} = FirstNode|NodeList]) ->

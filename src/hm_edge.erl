@@ -21,8 +21,7 @@ stop() ->
     {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
     stop_in(NameList).
 stop_in([]) -> ok;
-stop_in([Name|NameList]) ->
-    {ok, {sname, NodeName}} = gen_server:call({global, hm_config_if:name(Name)}, {get, sname}),
+stop_in([{_Name, NodeName}|NameList]) ->
     ok = rpc:call(NodeName, application, stop, [harmonia]),
     ok = rpc:call(NodeName, init, stop, []),
     stop_in(NameList).
