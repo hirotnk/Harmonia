@@ -8,15 +8,18 @@ TODO:
 6. need to deal with hidden node(how to do it)
 7. name server should return random node?
 
+TODO:2010-9-3
+OK: added global configuration I/F, client I/F
+
 TODO:2010-9-2
 OK: start-up mechanism
 1. test modules
 2. hidden node
-3. read me update
 4. name server returns random node?
 5. index of ets
 6. dets 
 7. interface of memcached
+3. read me update
 
 
 
