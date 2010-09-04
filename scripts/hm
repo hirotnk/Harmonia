@@ -12,7 +12,8 @@ opt_root_node=
 
 
 usage () {
-    echo "Usage: hm -t [create|[join -r root_name -w root_node@node]] -n name -s sname@node [-c cookievalue]" 
+    echo "Usage(start):hm -t [create|join -r root_name -w root_node@node] -n name -s sname@node [-c cookievalue]" 
+    echo "Usage(stop ):hm -q -w root_node@node -s sname@node [-c cookievalue]"
 }
 usage2 () {
     usage >&2
@@ -25,20 +26,22 @@ fi
 HM_EBIN="$HARMONIA_HOME/ebin"
 
 
-while getopts 'dt:r:n:s:c:w:' flag
+while getopts 'dt:r:n:s:c:w:q' flag
 do
     case $flag in
-        t) opt_node_type="$OPTARG"
+        c) opt_cookie="$OPTARG"
         ;;
         d) opt_detatched="1"
         ;;
+        n) opt_name="$OPTARG"
+        ;;
         r) opt_root="$OPTARG"
         ;;
-        n) opt_name="$OPTARG"
+        q) opt_quit="stop"
         ;;
         s) opt_sname="$OPTARG"
         ;;
-        c) opt_cookie="$OPTARG"
+        t) opt_node_type="$OPTARG"
         ;;
         w) opt_root_node="$OPTARG"
         ;;
@@ -46,7 +49,31 @@ do
         ;;
     esac
 done
+hm_cookie=${opt_cookie:-"$DEFAULT_COOKIE_NAME"}
+hm_detatched=${opt_detatched:+"-detached"}
 
+
+hm_quit=${opt_quit}
+if [ "$hm_quit" = "stop" ]; then
+
+    hm_root_node=${opt_root_node}
+    hm_sname=${opt_sname}
+    if [ -z "$hm_root_node" -o -z "$hm_sname" ]; then
+        echo "Need to specify root node and short name" >&2
+        usage2
+    fi
+
+    erl -pa $HM_EBIN \
+        -sname $hm_sname \
+        ${hm_detatched} \
+        -setcookie $hm_cookie \
+        -config harmonia \
+        -harmonia sname $hm_sname \
+        -s hm_edge stop $hm_root_node \
+        -s init stop
+
+    exit 0
+fi
 
 hm_node_type=${opt_node_type}
 if [ "$hm_node_type" != "join" -a "$hm_node_type" != "create" ]; then
@@ -74,8 +101,6 @@ if [ -z "$hm_sname" ]; then
     usage2
 fi
 
-hm_cookie=${opt_cookie:-"$DEFAULT_COOKIE_NAME"}
-hm_detatched=${opt_detatched:+"-detached"}
 
 #  +A size
 #      Sets the number of threads in async thread pool, valid range is 0-1024. Default is 0.

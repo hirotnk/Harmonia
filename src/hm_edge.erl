@@ -1,7 +1,8 @@
 -module(hm_edge).
 -export([
         start/0,
-        stop/0
+        stop/0,
+        stop/1
         ]).
 
 start() ->
@@ -16,7 +17,7 @@ start() ->
 %       because it has to be already connected to all nodes.
 %
 % this API takes a while to finish.
-stop() -> 
+stop() ->
     {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
     stop_in(NameList).
 stop_in([]) -> ok;
@@ -25,3 +26,6 @@ stop_in([Name|NameList]) ->
     ok = rpc:call(NodeName, application, stop, [harmonia]),
     ok = rpc:call(NodeName, init, stop, []),
     stop_in(NameList).
+
+stop([RootNode]) -> rpc:call(RootNode, hm_edge, stop, []).
+
