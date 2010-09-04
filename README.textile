@@ -12,19 +12,27 @@ TBD.
 
 h2. Example
 
+Harmonia Command
+
+<pre>
+Usage(start):hm -t [create|join -r root_name -w root_node@node] -n name -s sname@node [-c cookievalue]
+Usage(stop ):hm -q -w root_node@node -s sname@node [-c cookievalue]
+</pre>
+
 Start each node with name foo, bar, etc.
 
 <pre>
-    2> harmonia_sup:create(foo).
-    {ok,<0.36.0>}
-    3> harmonia_sup:join(bar, foo).
-    {ok,<0.48.0>}
-    4> harmonia_sup:join(dog, foo).
-    {ok,<0.54.0>}
-    5> harmonia_sup:join(hoge, foo).
-    {ok,<0.60.0>}
-    6> harmonia_sup:join(cat, foo).
-    {ok,<0.66.0>}
+    hiro@ubu:~$ scripts/hm -t create -n foo -s node_foo@ubu -d
+    hiro@ubu:~$ scripts/hm -t join -r foo -n bar  -s node_bar@ubu -w node_foo@ubu -d
+    hiro@ubu:~$ scripts/hm -t join -r foo -n hoge -s node_hoge@ubu -w node_foo@ubu -d
+    hiro@ubu:~$ scripts/hm -t join -r foo -n cat  -s node_cat@ubu -w node_foo@ubu -d
+    hiro@ubu:~$ scripts/hm -t join -r foo -n dog  -s node_dog@ubu -w node_foo@ubu -d
+</pre>
+
+Stop Harmonia
+
+<pre>
+    hiro@ubu:~$ scripts/hm -q -w node_foo@ubu -s stop_test@ubu -d
 </pre>
 
 Make table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
