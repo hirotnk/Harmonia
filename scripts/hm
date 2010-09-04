@@ -94,7 +94,7 @@ erl -pa $HM_EBIN \
     ${hm_detatched} \
     -setcookie $hm_cookie \
     -config harmonia \
-    -run hm_startup start \
+    -run hm_edge start \
     -harmonia node_type $hm_node_type \
               name $hm_name \
               sname $hm_sname 
@@ -106,7 +106,7 @@ erl -pa $HM_EBIN \
     -setcookie $hm_cookie \
     ${hm_detatched} \
     -config harmonia \
-    -run hm_startup start \
+    -run hm_edge start \
     -harmonia node_type $hm_node_type \
               root $hm_root \
               name $hm_name \
