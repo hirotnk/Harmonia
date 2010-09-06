@@ -56,7 +56,7 @@ clean:
 # code to compile
 
 #Where include files are stored ".hrl"
-EFLAGS = -I../include 
+EFLAGS = -I../include
 
 #######################################################################
 # Do not edit below this line                                         #

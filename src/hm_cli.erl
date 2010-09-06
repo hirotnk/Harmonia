@@ -1,11 +1,11 @@
 -module(hm_cli).
 -export([
-        get/3,
+        get/4,
         get_table_info/2,
         log_start/0,
         log_stop/0,
         make_table/3,
-        store/3
+        store/4
         ]).
 
 log_start() ->
@@ -34,12 +34,10 @@ get_table_info(DomainName, TableName) ->
     {ok, NodeName} = get_node_name(),
     rpc:call(NodeName, hm_table, get_table_info, [DomainName, TableName]).
 
-store(DomainName, TableName, KVList) ->
-    {ok, NodeName} = get_node_name(),
+store(NodeName, DomainName, TableName, KVList) ->
     rpc:call(NodeName, hm_ds, store, [DomainName, TableName, KVList]).
 
-get(DomainName, TableName, Cond) ->
-    {ok, NodeName} = get_node_name(),
+get(NodeName, DomainName, TableName, Cond) ->
     rpc:call(NodeName, hm_ds, get, [DomainName, TableName, Cond]).
 
 get_node_name() ->

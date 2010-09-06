@@ -13,19 +13,18 @@ GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
 PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
 PA = /usr/local/lib/erlang/lib/eunit-2.1.5/
-SOURCE = hm_qp_test.erl \
-	hm_cli_test.erl
+SOURCE = hm_cli_test.erl
 
 TARGETS = $(SOURCE:%.erl=./%.beam)
 CODE = $(SOURCE:%.erl=./%.beam) 
 
 ./%.beam: %.erl
-	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -b beam $(EFLAGS) $<
+	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o ../ebin -b beam $(EFLAGS) $<
 
 all: $(TARGETS)
 
 debug: $(TARGETS)
-	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -b beam $(EFLAGS) $<
+	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o ../ebin -b beam $(EFLAGS) $<
    
 clean:
 	\rm -f $(CODE) 
