@@ -349,7 +349,7 @@ get_from_succlist(Succlist, Key) ->
     end.
 
 init(RegName) ->
-    GlobalTableId = ets:new(?hm_global_table, [duplicate_bag, public]),
+    GlobalTableId = ets:new(?hm_global_table, [bag, public]),
     {ok, {RegName, [{?hm_global_table, GlobalTableId}]}}.
 
 handle_cast(stop, State) ->
