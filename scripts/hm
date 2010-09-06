@@ -63,6 +63,7 @@ if [ "$hm_quit" = "stop" ]; then
         usage2
     fi
 
+    echo "stopping all Harmonia nodes..."
     erl -pa $HM_EBIN \
         -sname $hm_sname \
         ${hm_detatched} \
@@ -73,6 +74,7 @@ if [ "$hm_quit" = "stop" ]; then
         -s init stop
 
     exit 0
+    echo "..stopped."
 fi
 
 hm_node_type=${opt_node_type}
@@ -112,6 +114,7 @@ fi
 #      Sets the maximum number of concurrent processes for this system. Number must be in 
 #      the range 16..134217727. Default is 32768.
 
+echo "starting Harmonia..."
 if [ "$opt_node_type" = "create" ]; then
 
 erl -pa $HM_EBIN \
@@ -138,3 +141,4 @@ erl -pa $HM_EBIN \
               sname $hm_sname \
               root_node $hm_root_node
 fi
+echo "..started."
