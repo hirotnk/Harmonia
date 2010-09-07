@@ -182,13 +182,21 @@ store(DomainName, TableName, KVList) ->
     {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
     case hm_table:get_table_info(DomainName, TableName, NodeList) of
         {ok, _Tid, AttList} ->
+
+            %% Key is calcurated with DTName+values of key fields
             DTName = list_to_atom(DomainName++TableName),
             {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
-            DataTableNode = hm_router:lookup(Key), % data record is stored on this node in ?hm_global_table table
+
+            %% data record is stored on this node in ?hm_global_table table
+            %% at first data is stored, then index is stored
+            DataTableNode = hm_router:lookup(Key), 
             case store_data(DTName, DataTableNode, KVList) of
                 {ok, _}      -> 
                     store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
-                {error, Msg} -> {error, Msg}
+                {error, Msg} -> 
+                    ?error_p("store_data failed :DTName:[~p] DataTableNode:[~p] KVList:[~p] Msg:[~p].~n", 
+                        none, [DTName, DataTableNode, KVList, Msg]),
+                    {error, Msg}
             end;
         {error, ErrInfo} -> {error, ErrInfo}
     end.
@@ -311,20 +319,18 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
     {RouterName, _} = hd(SuccList),
 
     TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
-    case global:whereis_name(TargetName) of 
-        undefined -> 
-            % TODO: when fail to store data, or node is down, write logging to  
-            %       another file and continue processing
+    case global:whereis_name(TargetName) of
+        undefined ->
             ?error_p("store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n", 
                 store, [Key, TargetName]),
             NewCnt = Cnt;
-        _Pid      -> 
+        _Pid      ->
             ?info_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
             Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
             case Reply of
                 {ok, _Msg} -> NewCnt = Cnt + 1;
-                {error, {store, Msg}} -> 
-                    ?error_p("store_to_succlist:~p undefined ~nKey:[~p] TargetName:[~p].~n", 
+                {error, Msg} ->
+                    ?error_p("store_to_succlist:~p undefined ~nKey:[~p] TargetName:[~p].~n",
                         store, [Msg, Key, TargetName]),
                     NewCnt = Cnt
             end
@@ -383,8 +389,16 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
         false -> 
             {reply, {error, {store, no_table_found}}, {RegName, TableList}};
         {TableName, TableId} ->
-            _Ret = ets:insert(TableId, {Key, Value}), % ets:insert always return true
-            {reply, {ok, insert}, {RegName, TableList}}
+            Ret = (catch ets:insert(TableId, {Key, Value})),
+            case Ret of
+                true ->
+                    {reply, {ok, insert}, {RegName, TableList}};
+                {'EXIT',{Reason,Stack}=ExcInfo} ->
+                    {reply, 
+                     {error, {store, exception, TableName, {Key, Value}, ExcInfo}}, 
+                     {RegName, TableList}
+                    }
+            end
     end;
 
 handle_call({get, TableId, Key}, _From, {RegName, GlobalTableId}) ->
