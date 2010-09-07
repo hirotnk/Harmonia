@@ -13,7 +13,9 @@ start_link() ->
 stop() ->
     gen_server:cast(?MODULE, stop).
 
-terminate(_Reason, _State) -> ok.
+terminate(Reason, State) -> 
+    ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
+    ok.
 
 init(_) -> {ok, []}. 
 

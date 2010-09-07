@@ -20,7 +20,9 @@ stop(RegName) ->
     ?info_p("stop:stopping:[~p].~n", RegName, [RegName]),
     gen_fsm:send_event({global, name(RegName)}, stop).
 
-terminate(_Reason, _StateName, _State) -> ok.
+terminate(Reason, StateName, State) ->
+    ?info_p("terminate:Reason:[~p] StateName:[~p], State:[~p]~n", none, [Reason, StateName, State]),
+    ok.
 
 stabilize_loop(stop, RegName) ->
     {stop, normal, RegName};

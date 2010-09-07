@@ -32,7 +32,8 @@ stop() ->
 stop(RegName) ->
     gen_server:cast({global, name(RegName)}, stop).
 
-terminate(_Reason, _State) ->
+terminate(Reason, State) ->
+    ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
     hm_misc:crypto_stop(),
     ok.
 
