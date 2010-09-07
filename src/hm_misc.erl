@@ -191,13 +191,7 @@ is_pred_nil(State) ->
     end.
 
 make_request_list(TargetName, SuccListTarget) ->
-    case length(SuccListTarget) > 0 of
-        true ->
-            SuccTemp = sets:to_list(sets:from_list(SuccListTarget)),
-            [{TargetName, instance} | lists:filter(fun({X,_})-> X =/= TargetName end, SuccTemp)];
-        false ->
-            [{TargetName, instance}]
-    end.
+    lists:usort([{TargetName, instance} | SuccListTarget ]).
 
 make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name
