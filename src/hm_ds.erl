@@ -210,7 +210,7 @@ store(DomainName, TableName, KVList) ->
 %%                                           {ng, Msg::string} |
 %%                 
 %% @doc
-%% store data of data filed in the following record form:
+%% store data of all fileds in the following record form:
 %% Row: {DmainName++TableName::atom(), [{Fld1, Value}, {Fld2, Value}, ...]}
 %% Key : calculate from key fields' data
 %% Target Nodes: calculate from Key
