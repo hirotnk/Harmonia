@@ -105,7 +105,7 @@ get(DomainName, TableName, Cond) ->
     end.
 
 lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) ->
-    DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
+    DataNodeName = name(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
 
     case hm_misc:is_alive(DataNodeName) of
         false -> 
@@ -129,8 +129,8 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
     case hm_misc:get_first_alive_entry(NodeList) of 
         {error, none} -> {error, no_node_available};
         {IndexNode, _Vector} ->
-            IndexNodeDs = name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
-            IndexNodeTable = hm_table:name(list_to_atom(atom_to_list(IndexNode) -- ?PROCESS_PREFIX)),
+            IndexNodeDs = name(atom_to_list(IndexNode) -- ?PROCESS_PREFIX),
+            IndexNodeTable = hm_table:name(atom_to_list(IndexNode) -- ?PROCESS_PREFIX),
             case gen_server:call({global, IndexNodeTable}, {get_table_info, DTNameTable}) of
                 {ok, Tid, AttList} ->
                     Fun = fun ?MODULE:fun_for_index/2,
@@ -160,7 +160,7 @@ lookup_data_table([], _DTNameTable, _FlistModified, _MS, RecList) ->
     {ok, RecList};
 lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     NodeName = hd(UniqNodeList),
-    DataNodeName = name(list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX)),
+    DataNodeName = name(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
 
     case hm_misc:is_alive(DataNodeName) of
         false -> 
@@ -319,17 +319,17 @@ store_to_succlist([], _TableName, _Key, _Value, {Len, Cnt}) ->
 store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
     {RouterName, _} = hd(SuccList),
 
-    TargetName = name(list_to_atom(hm_misc:diff(?PROCESS_PREFIX, atom_to_list(RouterName)))),
+    TargetName = name(atom_to_list(RouterName) -- ?PROCESS_PREFIX),
     case global:whereis_name(TargetName) of
         undefined ->
-            ?error_p("store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n", 
+            ?error_p("store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n",
                 store, [Key, TargetName]),
             NewCnt = Cnt;
-        _Pid      ->
+        _      ->
             ?info_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
             Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
             case Reply of
-                {ok, _Msg} -> NewCnt = Cnt + 1;
+                {ok, _} -> NewCnt = Cnt + 1;
                 {error, Msg} ->
                     ?error_p("store_to_succlist:~p undefined ~nKey:[~p] TargetName:[~p].~n",
                         store, [Msg, Key, TargetName]),
@@ -342,21 +342,21 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
 get_from_succlist([], _Key) -> {error, nodata};
 get_from_succlist(Succlist, Key) ->
     {RouterName, _} = hd(Succlist),
-    TargetName = name(list_to_atom( atom_to_list(RouterName) -- ?PROCESS_PREFIX )),
+    TargetName = name(atom_to_list(RouterName) -- ?PROCESS_PREFIX),
     case global:whereis_name(TargetName) of
         undefined ->
             get_from_succlist(tl(Succlist), Key);
-        _Any ->
+        _ ->
             Result = gen_server:call({global, TargetName}, {get, Key}),
             ?info_p("get:Key:[~p] TargetName:[~p] Result:[~p] .~n", get, [Key, TargetName, Result]),
             case length(Result) of
                 0 -> get_from_succlist(tl(Succlist), Key);
-                _Any -> Result
+                _ -> {ok, Result}
             end
     end.
 
 init(RegName) ->
-    GlobalTableId = ets:new(?hm_global_table, [bag, public]),
+    GlobalTableId = ets:new(?hm_global_table, [bag, public, named_table]),
     {ok, {RegName, [{?hm_global_table, GlobalTableId}]}}.
 
 handle_cast(stop, State) ->
@@ -370,17 +370,12 @@ handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TableList),
     {reply, ReplyData, State};
 
-handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, TableList}=State) ->
-    case lists:keyfind(?hm_global_table, 1, TableList) of
-        false -> {reply, {nb, no_global_table}, State};
-        {_,Tid} ->
-            % ets:select(16400, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
-            Reply = ets:select(Tid, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}],['$$']}]),
-            {reply, {ok, Reply}, State}
-    end;
+handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+    % ets:select(16400, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
+    Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}],['$$']}]),
+    {reply, {ok, Reply}, State};
 
 handle_call({select_table, Tid, FlistModified, MS}, _From, State) ->
-
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, Reply}, State};
 
@@ -402,14 +397,19 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
             end
     end;
 
-handle_call({get, TableId, Key}, _From, {RegName, GlobalTableId}) ->
-    Reply = ets:lookup(TableId, Key),
-    {reply, Reply, {RegName, GlobalTableId}};
+handle_call({get, Key}, _From, {RegName, TableList}) ->
+    Reply = ets:lookup(?hm_global_table, Key),
+    {reply, Reply, {RegName, TableList}};
 
-handle_call({get, TableName, _Key, {Op,Val}=_Cond}, _From, {RegName, GlobalTableId}) ->
+handle_call({get, TableId, Key}, _From, {RegName, TableList}) ->
+    Reply = ets:lookup(TableId, Key),
+    {reply, Reply, {RegName, TableList}};
+
+handle_call({get, TableName, _Key, {Op,Val}=_Cond}, _From, {RegName, TableList}) ->
     % list of {key, nodename}
     Reply = ets:select(TableName,[{ {'$1','$2'}, [ { Op, '$1', Val } ],['$_'] }]),
-    {reply, Reply, {RegName, GlobalTableId}}.
+    {reply, Reply, {RegName, TableList}}.
 
+name(Name) when is_list(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ Name);
 name(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ atom_to_list(Name)).
 

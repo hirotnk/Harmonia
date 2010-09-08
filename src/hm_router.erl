@@ -40,7 +40,7 @@ terminate(Reason, State) ->
 -spec(lookup(Key::atom()) -> atom()).
 % returns in the form of harmonia_foo
 lookup(Key) ->
-    KeyVector = hm_misc:get_digest_from_atom(Key),
+    KeyVector = hm_misc:get_digest(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
     {SuccName, _} = gen_server:call(
                         {global, name(RegName)}, 
@@ -57,7 +57,7 @@ state_info(RegName, NodeName) ->
 init({Op, RegName}) ->
     hm_misc:crypto_start(),
     NodeName = name(RegName),
-    NodeVector = hm_misc:get_digest_from_atom(NodeName),
+    NodeVector = hm_misc:get_digest(NodeName),
     State = #state{node_name = NodeName, node_vector = NodeVector},
     NewState = 
         case Op of 

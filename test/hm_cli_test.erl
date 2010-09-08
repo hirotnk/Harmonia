@@ -1,8 +1,10 @@
 -module(hm_cli_test).
 -export([
+        get/1,
         rget/1,
         rstore/1,
-        make_table/0
+        make_table/0,
+        store/1
         ]).
 
 make_table() ->
@@ -10,6 +12,26 @@ make_table() ->
     Tbl   = "Tbl2",
     FldList = [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}],
     hm_cli:make_table(Domain, Tbl, FldList).
+
+store(Len) ->
+    {ok, NodeName} = get_node_name(),
+    store_in(Len, NodeName).
+
+store_in(0, _NodeName) -> ok;
+store_in(Len, NodeName) when is_integer(Len) ->
+    Val = Len + 100,
+    hm_cli:store(NodeName, Len, Val),
+    store_in(Len-1, NodeName).
+
+get(Len) ->
+    {ok, NodeName} = get_node_name(),
+    get_in(Len, NodeName).
+
+get_in(0, _NodeName) -> ok;
+get_in(Len, NodeName) ->
+    hm_cli:get(NodeName, Len),
+    get_in(Len-1, NodeName).
+
 
 rstore(Len) ->
     Domain = "Domain1",
@@ -21,7 +43,7 @@ rstore(Len) ->
     {ok, NodeName} = get_node_name(),
     rstore_in(NodeName, Len, Domain, Tbl, [Fld1,Fld2,Fld3]).
 
-rstore_in(NodeName, 0, _Domain, _Tbl, [_,_,_]) -> ok;
+rstore_in(_NodeName, 0, _Domain, _Tbl, [_,_,_]) -> ok;
 rstore_in(NodeName, Len, Domain, Tbl, [Fld1,Fld2,Fld3]) ->
     %spawn(hm_cli, store, [NodeName, Domain, Tbl, [{Fld1, xxx},{Fld2, Len},{Fld3, textfile1}]]),
     hm_cli:store(NodeName, Domain, Tbl, [{Fld1, xxx},{Fld2, Len},{Fld3, textfile1}]),
@@ -33,7 +55,7 @@ rget(Len) ->
     {ok, NodeName} = get_node_name(),
     rget_in(NodeName, Len, Domain, Tbl).
 
-rget_in(NodeName, 0, _Domain, _Tbl) -> ok;
+rget_in(_NodeName, 0, _Domain, _Tbl) -> ok;
 rget_in(NodeName, Len, Domain, Tbl) ->
     %Num = integer_to_list(Len),
     %spawn(hm_cli, get, [NodeName, Domain, Tbl, "Fld1 == xxx and Fld2 == " ++ Num]),
