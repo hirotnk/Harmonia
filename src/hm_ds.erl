@@ -389,7 +389,7 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
             case Ret of
                 true ->
                     {reply, {ok, insert}, {RegName, TableList}};
-                {'EXIT',{Reason,Stack}=ExcInfo} ->
+                {'EXIT',{_Reason,_Stack}=ExcInfo} ->
                     {reply, 
                      {error, {store, exception, TableName, {Key, Value}, ExcInfo}}, 
                      {RegName, TableList}
