@@ -17,19 +17,18 @@ start_link({RegName, Env}) ->
     gen_fsm:start_link({local, ?MODULE}, ?MODULE, {RegName, Env}, []).
 
 stop(RegName) ->
-    %?info_p("stop:stopping:[~p].~n", RegName, [RegName]),
+    ?info_p("stop:stopping:[~p].~n", RegName, [RegName]),
     gen_fsm:send_event({global, name(RegName)}, stop).
 
 terminate(Reason, StateName, State) ->
-    %?info_p("terminate:Reason:[~p] StateName:[~p], State:[~p]~n", none, [Reason, StateName, State]),
+    ?info_p("terminate:Reason:[~p] StateName:[~p], State:[~p]~n", none, [Reason, StateName, State]),
     ok.
 
 cache_cleanup_lru(timeout, RegName) ->
-    io:fwrite("clean-up kicked\n"),
     RowCnt = ets:select_count(?ets_cache_table, ets:fun2ms(fun(_)->true end)),
     case RowCnt > ?ets_cache_threshold_num of
         true -> 
-            io:fwrite("Current Num:[~p]\n", [RowCnt]),
+            ?info_p("Current Num:[~p]\n", RegName, [RowCnt]),
             clean_up_worker(RowCnt - ?ets_cache_threshold_num);
         false -> ok
     end,
@@ -66,7 +65,7 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
             RecMatch -> del_until_threshold(RecMatch, ToDelCnt)
         end,
     RowCnt = ets:select_count(?ets_cache_table, ets:fun2ms(fun(_)->true end)),
-    io:fwrite("New Row Num:[~p]\n", [RowCnt]),
+    ?info_p("New Row Num:[~p]\n", none, [RowCnt]),
     case NextDelCnt > 0 of
         true -> 
             %% there is still need to delete some records
@@ -92,6 +91,7 @@ init({RegName, Env}) ->
             undefined -> ?cache_timeout;
             Tout -> Tout
         end,
+    hm_cache:start(),
     {ok, cache_cleanup_lru, RegName, ?cache_cleanup_interval}.
 
 name(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Name)).

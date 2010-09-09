@@ -14,13 +14,8 @@ start() ->
 
 store_cache(Key, Value) ->
     {MegaSecs, Secs, _Microsecs} = now(),
-    Ret = (
-            catch 
-                ets:insert(
-                    ?ets_cache_table, 
-                    {Key, Value, 0, MegaSecs*1000000 + Secs + ?cache_timeout}
-                )
-          ),
+    ets:insert(?ets_cache_table, 
+               {Key, Value, 0, MegaSecs*1000000 + Secs + ?cache_timeout}),
     ok.
 
 -spec(get_cache(Key::list()|atom()|integer()) -> none|{ok, {Value::term(), Cnt::integer()}}).

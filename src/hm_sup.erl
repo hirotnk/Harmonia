@@ -45,7 +45,8 @@ create_children(Type, Arg, Name, Env) ->
             child(hm_router,     hm_router,     [Arg],  worker),
             child(hm_stabilizer, hm_stabilizer, [Name], worker),
             child(hm_ds,         hm_ds,         [Name], worker),
-            child(hm_table,      hm_table,      [Name], worker)
+            child(hm_table,      hm_table,      [Name], worker),
+            child(hm_cache_mgr,  hm_cache_mgr,  [{Name, Env}], worker)
         ],
     ServerList = 
         case Type =:= create of 

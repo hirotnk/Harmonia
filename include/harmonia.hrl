@@ -43,10 +43,8 @@
 -define(ets_cache_table, ets_cache_table).
 -define(cache_timeout, (60*60)).  % default 1 hour later
 -define(cache_limit_size, 10000). % default 10000 recs
-%-define(cache_cleanup_interval, (60 * 5 * 1000)). % 5minutes
--define(cache_cleanup_interval, (5 * 1000)). % 5minutes
-%-define(ets_cache_threshold_num, 10000).
--define(ets_cache_threshold_num, 100).
+-define(cache_cleanup_interval, (60 * 5 * 1000)). % 5minutes
+-define(ets_cache_threshold_num, 1000000).
 
 
 -record(state, {node_name, node_vector, predecessor=nil, finger=[], succlist=[], current_fix=0}).
