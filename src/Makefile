@@ -12,7 +12,8 @@ CFLG = -W +warn_unused_vars +warn_unused_import +debug_info
 ERL = erl
 GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
-PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
+PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/lib/erlang/lib/eunit-2.1.5/
+
 SOURCE = harmonia.erl \
 	hm_sup.erl \
 	hm_misc.erl \
@@ -29,6 +30,8 @@ SOURCE = harmonia.erl \
 	hm_log_h_term.erl \
 	hm_qp.erl \
 	hm_edge.erl \
+	hm_cache.erl \
+	hm_cache_mgr.erl \
 	hm_cli.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
@@ -56,7 +59,8 @@ clean:
 # code to compile
 
 #Where include files are stored ".hrl"
-EFLAGS = -I../include
+EFLAGS = -I../include -I/usr/local/lib/erlang/lib/stdlib-1.16.5/
+
 
 #######################################################################
 # Do not edit below this line                                         #

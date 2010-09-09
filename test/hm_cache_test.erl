@@ -2,7 +2,7 @@
 -compile(export_all).
 
 start() ->
-    hm_cache:start_link([]).
+    hm_cache:start().
 
 stop() ->
     hm_cache:stop([]).
@@ -22,7 +22,9 @@ get(N) ->
 get_in(0) -> ok;
 get_in(N) ->
     Key = "key" ++ integer_to_list(N),
-    {ok, Rec} = hm_cache:get_cache(Key),
-    io:format("~p~n", [Rec]),
+    case hm_cache:get_cache(Key) of
+        {ok, Rec} -> ok;
+        none -> io:format("not found Key:[~p]~n", [Key])
+    end,
     get_in(N-1).
 
