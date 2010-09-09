@@ -8,9 +8,9 @@
 start() ->
     case application:start(harmonia) of
         ok -> 
-            io:format("harmonia application started.~n");
+            io:fwrite("harmonia application started.~n");
         {error, Msg} ->
-            io:format("harmonia application start failed:~p~n", Msg)
+            io:fwrite("harmonia application start failed:~p~n", Msg)
     end.
 
 % Note: This API needs to be executed on the node on which hm_name_server runs
@@ -24,6 +24,7 @@ stop_in([]) -> ok;
 stop_in([{_Name, NodeName}|NameList]) ->
     ok = rpc:call(NodeName, application, stop, [harmonia]),
     ok = rpc:call(NodeName, init, stop, []),
+    io:fwrite("harmonia application stopping.~n"),
     stop_in(NameList).
 
 stop([RootNode]) -> rpc:call(RootNode, hm_edge, stop, []).
