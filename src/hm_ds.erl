@@ -234,8 +234,7 @@ store_index(DTNameTable, DataTableNode, IndexTableNode, KVList, AttList) ->
     {ok, Row} = extract_kv_tuples(KVList, AttList, true),
     Vlist = 
         lists:foldl(
-            fun
-                ({_Fname,Value}, AccIn) ->
+            fun({_Fname,Value}, AccIn) ->
                     AccIn ++ [Value]
             end, [], Row),
     store_in_to(IndexTableNode, DTNameTable, {DataTableNode, Vlist}).
@@ -277,19 +276,16 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
     {ok, KeyList} = 
         extract_kv_tuples(KVList, AttList, true),
 
-    % the value of the key fields must be list/string()
+    % the value of the key fields must be list/string()/atom
     Key = lists:foldl(fun
-                        ({_, Data},AccIn) -> 
-                            case is_list(Data) of
-                                true -> AccIn ++ Data ;
-                                false -> 
-                                    case is_atom(Data) of
-                                        true ->
-                                            AccIn ++ atom_to_list(Data);
-                                        false ->
-                                            AccIn ++ integer_to_list(Data)
-                                    end
-                            end
+                        ({_, Data},AccIn) when is_list(Data) -> 
+                                AccIn ++ Data;
+
+                        ({_, Data},AccIn) when is_atom(Data) -> 
+                                AccIn ++ atom_to_list(Data);
+
+                        ({_, Data},AccIn) when is_integer(Data) -> 
+                                AccIn ++ integer_to_list(Data)
                       end, 
                       [], KeyList),
     {ok, list_to_atom(atom_to_list(DTName)++Key)}.
@@ -371,14 +367,13 @@ handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
     {reply, ReplyData, State};
 
 handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
-    % ets:select(16400, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
+    % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
     Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}],['$$']}]),
     {reply, {ok, Reply}, State};
 
 handle_call({select_table, Tid, FlistModified, MS}, _From, State) ->
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, Reply}, State};
-
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
     case lists:keyfind(TableName, 1, TableList) of 
@@ -389,9 +384,9 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
             case Ret of
                 true ->
                     {reply, {ok, insert}, {RegName, TableList}};
-                {'EXIT',{_Reason,_Stack}=ExcInfo} ->
+                Any ->
                     {reply, 
-                     {error, {store, exception, TableName, {Key, Value}, ExcInfo}}, 
+                     {error, {store, exception, TableName, {Key, Value}, Any}}, 
                      {RegName, TableList}
                     }
             end
@@ -403,11 +398,6 @@ handle_call({get, Key}, _From, {RegName, TableList}) ->
 
 handle_call({get, TableId, Key}, _From, {RegName, TableList}) ->
     Reply = ets:lookup(TableId, Key),
-    {reply, Reply, {RegName, TableList}};
-
-handle_call({get, TableName, _Key, {Op,Val}=_Cond}, _From, {RegName, TableList}) ->
-    % list of {key, nodename}
-    Reply = ets:select(TableName,[{ {'$1','$2'}, [ { Op, '$1', Val } ],['$_'] }]),
     {reply, Reply, {RegName, TableList}}.
 
 name(Name) when is_list(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ Name);
