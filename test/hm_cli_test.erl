@@ -1,11 +1,15 @@
 -module(hm_cli_test).
--export([
-        get/1,
-        rget/1,
-        rstore/1,
-        make_table/0,
-        store/1
-        ]).
+-compile(export_all).
+%%-export([
+%%        get/1,
+%%        get/2,
+%%        get_node_name/0,
+%%        rget/1,
+%%        rstore/1,
+%%        make_table/0,
+%%        store/1,
+%%        store/2
+%%        ]).
 
 make_table() ->
     Domain = "Domain1",
@@ -14,24 +18,39 @@ make_table() ->
     hm_cli:make_table(Domain, Tbl, FldList).
 
 store(Len) ->
-    {ok, NodeName} = get_node_name(),
-    store_in(Len, NodeName).
+    store_in(Len).
 
-store_in(0, _NodeName) -> ok;
-store_in(Len, NodeName) when is_integer(Len) ->
+store_in(0) -> ok;
+store_in(Len) when is_integer(Len) ->
     Val = Len + 100,
-    hm_cli:store(NodeName, Len, Val),
-    store_in(Len-1, NodeName).
+    hm_cli:store(Len, Val),
+    store_in(Len-1).
+
+store('$cache_on$', Len) ->
+    store_cache_in(Len).
+
+store_cache_in(0) -> ok;
+store_cache_in(Len) when is_integer(Len) ->
+    Val = Len + 100,
+    hm_cli:store('$cache_on$', Len, Val),
+    store_cache_in(Len-1).
+
 
 get(Len) ->
-    {ok, NodeName} = get_node_name(),
-    get_in(Len, NodeName).
+    get_in(Len).
 
-get_in(0, _NodeName) -> ok;
-get_in(Len, NodeName) ->
-    hm_cli:get(NodeName, Len),
-    get_in(Len-1, NodeName).
+get_in(0) -> ok;
+get_in(Len) ->
+    hm_cli:get(Len),
+    get_in(Len-1).
 
+get('$cache_on$', Len) ->
+    get_in('$cache_on$', Len).
+
+get_in('$cache_on$', 0) -> ok;
+get_in('$cache_on$', Len) ->
+    hm_cli:get('$cache_on$', Len),
+    get_in('$cache_on$', Len-1).
 
 rstore(Len) ->
     Domain = "Domain1",

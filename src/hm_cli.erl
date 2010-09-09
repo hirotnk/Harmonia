@@ -1,13 +1,14 @@
 -module(hm_cli).
 -export([
+        get/1,
         get/2,
-        get/4,
+        get/3,
         get_table_info/2,
         log_start/0,
         log_stop/0,
         make_table/3,
-        store/3,
-        store/4
+        store/2,
+        store/3
         ]).
 
 log_start() ->
@@ -36,17 +37,22 @@ get_table_info(DomainName, TableName) ->
     {ok, NodeName} = get_node_name(),
     rpc:call(NodeName, hm_table, get_table_info, [DomainName, TableName]).
 
-store(NodeName, Key, Value) ->
-    rpc:call(NodeName, hm_ds, store, [Key, Value]).
+store(Key, Value) ->
+    hm_ds:store(Key, Value).
 
-store(NodeName, DomainName, TableName, KVList) ->
-    rpc:call(NodeName, hm_ds, store, [DomainName, TableName, KVList]).
+store('$cache_on$', Key, Value) ->
+    hm_ds:store('$cache_on$', Key, Value);
+store(DomainName, TableName, KVList) ->
+    hm_ds:store(DomainName, TableName, KVList).
 
-get(NodeName, Key) ->
-    rpc:call(NodeName, hm_ds, get, [Key]).
+get(Key) ->
+    hm_ds:get(Key).
 
-get(NodeName, DomainName, TableName, Cond) ->
-    rpc:call(NodeName, hm_ds, get, [DomainName, TableName, Cond]).
+get('$cache_on$',Key) ->
+    hm_ds:get('$cache_on$', Key).
+
+get(DomainName, TableName, Cond) ->
+    hm_ds:get(DomainName, TableName, Cond).
 
 get_node_name() ->
     {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),

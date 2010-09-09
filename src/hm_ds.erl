@@ -6,6 +6,7 @@
         fun_for_data/2,
         fun_for_index/2,
         get/1,
+        get/2,
         get/3,
         name/1,
         start_link/1,
@@ -43,6 +44,21 @@ get(Key) ->
     SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
+
+get('$cache_on$', Key) ->
+    case hm_cache:get_cache(Key) of
+        none ->
+            case hm_ds:get(Key) of
+                {ok, {Key, Value}} -> 
+                    hm_cache:store_cache(Key, Value),
+                    {ok, {Key, Value}};
+                {error, Msg} -> 
+                    {error, Msg}
+            end;
+
+        {ok, {Value, Cnt}} ->
+            {ok, {Key, Value}}
+    end.
 
 
 %% @spec(store(Key::atom(), Value::any() ) -> {ok, Cnt::integer()} | 
@@ -177,6 +193,9 @@ lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     end.
 
 
+store('$cache_on$', Key, Value) ->
+    hm_cache:store_cache(Key, Value),
+    store(Key, Value);
 store(DomainName, TableName, KVList) ->
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
 
