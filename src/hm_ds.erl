@@ -3,10 +3,11 @@
 -vsn('0.1').
 
 -export([
+        cget/1,
+        cstore/2,
         fun_for_data/2,
         fun_for_index/2,
         get/1,
-        get/2,
         get/3,
         name/1,
         start_link/1,
@@ -45,7 +46,7 @@ get(Key) ->
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
 
-get('$cache_on$', Key) ->
+cget(Key) ->
     case hm_cache:get_cache(Key) of
         none ->
             case hm_ds:get(Key) of
@@ -115,7 +116,8 @@ get(DomainName, TableName, Cond) ->
                 {error, Ref, Msg} -> {error, Msg} 
             after ?TIMEOUT_GET ->
                 ?error_p("get timeout :DomainName:[~p] TabName:[~p] Cond:[~p]~n",
-                        get, [DomainName, TableName, Cond])
+                        get, [DomainName, TableName, Cond]),
+                {error, timeout}
             end;
         {error, Msg} -> {error, Msg}
     end.
@@ -193,9 +195,10 @@ lookup_data_table(UniqNodeList, DTNameTable, FlistModified, MS, RecList) ->
     end.
 
 
-store('$cache_on$', Key, Value) ->
+cstore(Key, Value) ->
     hm_cache:store_cache(Key, Value),
-    store(Key, Value);
+    store(Key, Value).
+
 store(DomainName, TableName, KVList) ->
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
 
