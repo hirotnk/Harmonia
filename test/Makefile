@@ -14,7 +14,8 @@ GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
 PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
 SOURCE = hm_cli_test.erl \
-	hm_cache_test.erl
+	hm_cache_test.erl \
+	hm_test.erl
 
 TARGETS = $(SOURCE:%.erl=./%.beam)
 CODE = $(SOURCE:%.erl=./%.beam) 
