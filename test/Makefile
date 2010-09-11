@@ -6,6 +6,7 @@
 # (../ebin)                                                           #
 ####################################################################### 
 #Compiles the code into a ebin dir. relative to the source dir. 
+EBIN = ../ebin
 EDBG = -Ddebug
 CFLG = -W +warn_unused_vars +warn_unused_import +debug_info 
 PA = /usr/local/lib/erlang/lib/eunit-2.1.5
@@ -17,16 +18,16 @@ SOURCE = hm_cli_test.erl \
 	hm_cache_test.erl \
 	hm_test.erl
 
-TARGETS = $(SOURCE:%.erl=./%.beam)
-CODE = $(SOURCE:%.erl=./%.beam) 
+TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
+CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 
 
 ./%.beam: %.erl
-	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o ../ebin -b beam $(EFLAGS) $<
+	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o $(EBIN) -b beam $(EFLAGS) $<
 
 all: $(TARGETS)
 
 debug: $(TARGETS)
-	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o ../ebin -b beam $(EFLAGS) $<
+	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o $(EBIN) -b beam $(EFLAGS) $<
    
 clean:
 	\rm -f $(CODE) 
