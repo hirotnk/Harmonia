@@ -98,4 +98,5 @@ handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblLi
     TableId = ets:new(DTName, [duplicate_bag, public]),
     {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
 
-name(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Name)).
+name(Name) when is_list(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ Name);
+name(Name) when is_atom(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Name)).
