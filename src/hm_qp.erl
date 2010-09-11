@@ -19,14 +19,17 @@
 %% Fld : StringNum
 %% StringNum : 'a-Z' ('a-Z'|'0-9')*
 %% 
-%% examples:
-%% 
-%% 
-%% 
--module(hm_qp).
--compile([export_all]).
 
- -define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
+-module(hm_qp).
+-export([
+        eval/1,
+        parse/1,
+        scan/2,
+        scan_ret/2,
+        scan/3
+        ]).
+
+-define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
 -define(NUMBERS, "0123456789").
 
 parse(Tokens) ->
@@ -79,29 +82,63 @@ parse_term([{const,Val}|Tokens], []) ->
 
 
 
-scan(Query, AttList)->
+scan(Query, {IsKey, AttList})->
     Tokens = scan(Query, [], []),
-    lists:map(fun
-                  ({identifier, String}) -> 
-                      Token = lists:reverse(String),
+    scan_ret(Tokens, {IsKey, AttList}).
 
-                      case find_nth(Token, AttList) of 
-                          {no_field, _} -> 
-                              {identifier, list_to_atom(Token)};
-                          N -> 
-                              {identifier, list_to_atom("$" ++ integer_to_list(N+1))}
-                      end;
+scan_ret(Tokens, {IsKey, AttList}) -> 
+    scan_ret_in(Tokens, {IsKey, AttList}, []).
 
-                  ({const, String}) -> 
-                      {const, list_to_integer(lists:reverse(String))};
+scan_ret_in([], {_IsKey, _AttList}, Result) -> lists:reverse(Result);
+scan_ret_in([{identifier, String}|Tokens], {IsKey, AttList}, Result) when IsKey =:= true ->
+    Token = lists:reverse(String),
+    case find_nth(Token, AttList) of 
+        {no_field, _} -> 
+            scan_ret_in(
+                Tokens,
+                {IsKey, AttList},
+                [{identifier, list_to_atom(Token)}|Result]
+            );
 
-                  ({atom, String}) -> 
-                      {atom, list_to_atom(lists:reverse(String))};
+        {false, _N} -> 
+            %% if the field name is NOT key field, then ignore this field condition
+            %% for key table search
+            {_Discard, NewTokens} = lists:split(2,Tokens),
+            scan_ret_in(
+                NewTokens, 
+                {IsKey, AttList},
+                [{atom, true},{relational_operator,"=:="},{atom, true}|Result]
+            );
 
-                  ({Type, String}) -> 
-                      {Type, String}
-              end,
-              Tokens).
+        {true, N} -> 
+            %% add 1, because $1 is the table name
+            scan_ret_in(
+                Tokens,
+                {IsKey, AttList},
+                [{identifier, list_to_atom("$" ++ integer_to_list(N+1))}|Result]
+            )
+    end;
+scan_ret_in([{identifier, String}|Tokens], {IsKey, AttList}, Result) ->
+    Token = lists:reverse(String),
+    NewToken = 
+        case find_nth(Token, AttList) of 
+            {no_field, _} -> 
+                {identifier, list_to_atom(Token)};
+            {_, N} -> 
+                %% add 1, because $1 is the table name
+                {identifier, list_to_atom("$" ++ integer_to_list(N+1))}
+        end,
+    scan_ret_in(Tokens, {IsKey, AttList}, [NewToken|Result]);
+scan_ret_in([{const, String}|Tokens], {IsKey, AttList}, Result) ->
+    NewToken = {const, list_to_integer(lists:reverse(String))},
+    scan_ret_in(Tokens, {IsKey, AttList}, [NewToken|Result]);
+scan_ret_in([{atom, String}|Tokens], {IsKey, AttList}, Result) ->
+    NewToken = {atom, list_to_atom(lists:reverse(String))},
+    scan_ret_in(Tokens, {IsKey, AttList}, [NewToken|Result]);
+scan_ret_in([{Type, String}|Tokens], {IsKey, AttList}, Result) ->
+    NewToken = {Type, String},
+    scan_ret_in(Tokens, {IsKey, AttList}, [NewToken|Result]).
+
 
 scan([],  Cur, Tokens) -> Tokens ++ Cur;
 
@@ -130,12 +167,16 @@ scan("or" ++ Query, [], Tokens) ->
 
 scan(">=" ++ Query, Cur, Tokens) ->
     scan(Query, [], Tokens++Cur++[{relational_operator, ">="}]);
+scan("=<" ++ Query, Cur, Tokens) ->
+    scan(Query, [], Tokens++Cur++[{relational_operator, "=<"}]);
+scan("=>" ++ Query, Cur, Tokens) ->
+    scan(Query, [], Tokens++Cur++[{relational_operator, ">="}]);
 scan("<=" ++ Query, Cur, Tokens) ->
-    scan(Query, [], Tokens++Cur++[{relational_operator, "<="}]);
+    scan(Query, [], Tokens++Cur++[{relational_operator, "=<"}]);
 scan("==" ++ Query, Cur, Tokens) ->
     scan(Query, [], Tokens++Cur++[{relational_operator, "=="}]);
 scan("!=" ++ Query, Cur, Tokens) ->
-    scan(Query, [], Tokens++Cur++[{relational_operator, "!="}]);
+    scan(Query, [], Tokens++Cur++[{relational_operator, "/="}]);
 scan("<" ++ Query, Cur, Tokens) ->
     scan(Query, [], Tokens++Cur++[{relational_operator, "<"}]);
 scan(">" ++ Query, Cur, Tokens) ->
@@ -194,12 +235,14 @@ eval({Rel, Op1, Op2}) ->
 eval(Op) ->
     io:format("evaluating: ~p ~n", [Op]),
     {result, Op}.
-    
-find_nth(Token, AttList) -> find_nth_in(Token, AttList, 1).
+
+find_nth(Token, AttList) -> 
+    find_nth_in(Token, AttList, 1).
+
 find_nth_in(Token, [], _N) -> {no_field, Token};
-find_nth_in(Token, [{FieldName, _, _} | AttList], N) ->
+find_nth_in(Token, [{FieldName, IsKey, _} | AttList], N) ->
     case Token =:= FieldName of 
-        true -> N;
+        true -> {IsKey, N};
         false -> 
             find_nth_in(Token, AttList, N+1)
     end.

@@ -100,6 +100,11 @@ get(DomainName, TableName, Cond) ->
     case lookup_index_table(NodeList, DTName, Cond) of
         {ok, DataNodeList, AttList, [MS]} ->
 
+            {ok, _, [MSData]} = make_select_cond(
+                                AttList, Cond, 
+                                fun ?MODULE:fun_for_index/2, 
+                                data
+                              ),
             {_, Flist} = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
 
             NodeCnt = length(DataNodeList), Ref = make_ref(),
@@ -118,7 +123,7 @@ get(DomainName, TableName, Cond) ->
                         spawn_link(
                             ?MODULE, 
                             lookup_data_table_solo, 
-                            [El, DTName, Flist, MS, LoopPid, Ref]
+                            [El, DTName, Flist, MSData, LoopPid, Ref]
                         )
                    end, 
                    DataNodeList
@@ -150,9 +155,13 @@ lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) -
             LoopPid ! {ok, Ref, RowList}
     end.
 
-make_select_cond(AttList, Cond, Fun) ->
+make_select_cond(AttList, Cond, Fun, index) ->
     {_, FlistModified} = lists:foldl(Fun, {1,[]}, AttList),
-    MS = hm_qp:parse(hm_qp:scan(Cond, AttList)),
+    MS = hm_qp:parse(hm_qp:scan(Cond, {true, AttList})),
+    {ok, FlistModified, MS};
+make_select_cond(AttList, Cond, Fun, data) ->
+    {_, FlistModified} = lists:foldl(Fun, {1,[]}, AttList),
+    MS = hm_qp:parse(hm_qp:scan(Cond, {false, AttList})),
     {ok, FlistModified, MS}.
 
 lookup_index_table(NodeList, DTNameTable, Cond) ->
@@ -164,7 +173,7 @@ lookup_index_table(NodeList, DTNameTable, Cond) ->
             case gen_server:call({global, IndexNodeTable}, {get_table_info, DTNameTable}) of
                 {ok, Tid, AttList} ->
                     Fun = fun ?MODULE:fun_for_index/2,
-                    {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun),
+                    {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun, index),
                     {ok, RowList} = 
                         gen_server:call({global, IndexNodeDs}, {select_table, Tid, FlistModified, MS}),
                     UniqNodeList = 
