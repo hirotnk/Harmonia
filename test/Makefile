@@ -21,7 +21,7 @@ SOURCE = hm_cli_test.erl \
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
 CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 
 
-./%.beam: %.erl
+$(EBIN)/%.beam: %.erl
 	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -o $(EBIN) -b beam $(EFLAGS) $<
 
 all: $(TARGETS)
