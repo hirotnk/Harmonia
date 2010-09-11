@@ -25,8 +25,8 @@
 -include_lib("include/ms_transform.hrl").
 
 
-start_link({RegName, Env}) ->
-    gen_fsm:start_link({local, ?MODULE}, ?MODULE, {RegName, Env}, []).
+start_link(RegName) ->
+    gen_fsm:start_link({local, ?MODULE}, ?MODULE, RegName, []).
 
 stop(RegName) ->
     ?info_p("stop:stopping:[~p].~n", RegName, [RegName]),
@@ -87,22 +87,12 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
     end.
 
 del_until_threshold([], ToDelCnt) -> ToDelCnt;
-del_until_threshold(Any, 0) -> 0;
+del_until_threshold(_Any, 0) -> 0;
 del_until_threshold([Key|RecList], ToDelCnt) ->
     ets:delete(?ets_cache_table, Key),
     del_until_threshold(RecList, ToDelCnt - 1).
 
-init({RegName, Env}) -> 
-    Limit = 
-        case proplists:get_value(cache_limit_size, Env) of 
-            undefined -> ?cache_limit_size;
-            Lim -> Lim
-        end,
-    Timeout = 
-        case proplists:get_value(cache_timeout, Env) of
-            undefined -> ?cache_timeout;
-            Tout -> Tout
-        end,
+init(RegName) -> 
     hm_cache:start(),
     {ok, cache_cleanup_lru, RegName, ?cache_cleanup_interval}.
 
