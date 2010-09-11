@@ -13,9 +13,9 @@
 -module(hm_sup).
 -behaviour(supervisor).
 -export([
-        create/2, 
-        join/3, 
-        start_link/1, 
+        create/2,
+        join/3,
+        start_link/1,
         stop/1
         ]).
 -export([init/1]).
