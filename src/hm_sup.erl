@@ -37,9 +37,14 @@ start_link(Env) ->
                 ok = connect_node(RootNode),
                 join(Name, Root , Env);
             Any ->
-                io:format("ERR:~p\n", [Any])
+                io:fwrite("ERR:~p\n", [Any])
         end,
     {ok, {Name, NodeName}} = gen_server:call({global, ?name_server}, {register_name, {Name, NodeName}}),
+    case hm_log_h_file:add() of
+        ok -> ok;
+        Err -> io:fwrite("ERR: log file handler add:[~p]~n", [Err])
+    end,
+    io:fwrite("start Pid:[~p]~n", [Pid]),
     {ok, Pid}.
 
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
