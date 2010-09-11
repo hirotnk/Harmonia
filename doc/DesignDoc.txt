@@ -1,5 +1,8 @@
-Data Store should be able to have the following API:
-- get_successor_list
+Performance Consideration:
+1. all key fields are stored in index table(this table is created for each table), and this index table is stored on one node(index data is concentrated)
+2. all fields are stored in global table which is common for all table.
+3. from 1 and 2, space needed is [(key fields)*2 + (data fields)]
+
 
 Tests:
 1. Checking Routing Information is correct
