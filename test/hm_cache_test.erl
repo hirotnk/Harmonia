@@ -23,7 +23,7 @@ get_in(0) -> ok;
 get_in(N) ->
     Key = "key" ++ integer_to_list(N),
     case hm_cache:get_cache(Key) of
-        {ok, Rec} -> ok;
+        {ok, _Rec} -> ok;
         none -> io:format("not found Key:[~p]~n", [Key])
     end,
     get_in(N-1).
