@@ -9,6 +9,14 @@ TODO:
 6. index of ets
 7. interface of memcached
 
+TODO:2010-9-12
+need to check input of query condition(API is baaaaad..)
+test script for range query
+table -> table name, and crash deal
+flatten the list when return data
+
+
+
 TODO:2010-9-7
 make simple key-value I/F test API
 

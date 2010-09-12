@@ -60,10 +60,11 @@ cstore(Key, Value) ->
 store(DomainName, TableName, KVList) ->
     hm_ds:store(DomainName, TableName, KVList).
 
-%% @spec(get(Key::atom()|string()|integer()) -> {ok, Result::any}|
+%% @spec(get(Key::atom()|string()|integer()) -> {ok, Result::Recset}|
 %%                                              {error, nodata}).
 %%
-%% @doc simple K/V get api
+%% @doc Recset::Records, Records::ListofRec
+%%      simple K/V get api
 get(Key) ->
     hm_ds:get(Key).
 
