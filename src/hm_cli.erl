@@ -20,7 +20,7 @@
         get_table_info/2,
         log_start/0,
         log_stop/0,
-        make_table/3,
+        create_table/3,
         store/2,
         rstore/3
         ]).
@@ -96,15 +96,15 @@ get_node_names() ->
     gen_server:call({global, hm_name_server}, get_name_list).
 
 
-%% @spec(make_table(DomainName::string(), TableName::string(), AttList::list()) ->
+%% @spec(create_table(DomainName::string(), TableName::string(), AttList::list()) ->
 %%           {ok, {NodeList::list(), FailedList::list()}}).
 %%
 %% @doc make table for storing index info of this table
 %%      returns list of nodes in which tables were created, 
 %%      and list of nodes which table creation failed
 %%      TODO: this return value make sense??
-make_table(DomainName, TableName, AttList) ->
-    hm_table:make_table(DomainName, TableName, AttList).
+create_table(DomainName, TableName, AttList) ->
+    hm_table:create_table(DomainName, TableName, AttList).
 
 
 %% @spec(get_table_info(DomainName::string(), TableName::string()) ->

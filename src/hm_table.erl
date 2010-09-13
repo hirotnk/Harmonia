@@ -17,7 +17,7 @@
 -export([
         get_table_info/2, 
         get_table_info/3,
-        make_table/3, 
+        create_table/3, 
         name/1, 
         start_link/1, 
         stop/1 
@@ -56,28 +56,29 @@ get_table_info(DomainName, TableName, NodeList) ->
     end.
 
 
-%% spec(make_table(string(), string(), list()) -> {ok, {list(),list()}}).
-make_table(DomainName, TableName, AttList) ->
+%% spec(create_table(string(), string(), list()) -> {ok, {list(),list()}}).
+create_table(DomainName, TableName, AttList) ->
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
 
     % table is made on every node in successor list of correspondent node
-    {ok, FailedList} = make_table_in(NodeList, [], DomainName, TableName, AttList),
+    {ok, FailedList} = create_table_in(NodeList, [], DomainName, TableName, AttList),
     {ok, {NodeList, FailedList}}.
 
 
-make_table_in([], FailedList, _DomainName, _TableName, _AttList) ->
+%% @doc this module makes tables, and register table info to hm_ds process
+create_table_in([], FailedList, _DomainName, _TableName, _AttList) ->
     {ok, FailedList};
-make_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
+create_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
                   FailedList, DomainName, TableName, AttList) ->
     TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
     case hm_misc:is_alive(TargetName) of 
         true ->
-            {ok, TableInfo} =  gen_server:call({global, TargetName}, {make_table, DomainName, TableName, AttList}),
+            {ok, TableInfo} =  gen_server:call({global, TargetName}, {create_table, DomainName, TableName, AttList}),
             TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
             gen_server:call({global, TargetName_ds}, {register_table, TableInfo}),
-            make_table_in(Tail, FailedList, DomainName, TableName, AttList);
+            create_table_in(Tail, FailedList, DomainName, TableName, AttList);
         false ->
-            make_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
+            create_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
     end.
 
 
