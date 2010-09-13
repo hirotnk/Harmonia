@@ -15,9 +15,10 @@
 -vsn('0.1').
 
 -export([
+        create_table/3, 
+        drop_table/2,
         get_table_info/2, 
         get_table_info/3,
-        create_table/3, 
         name/1, 
         start_link/1, 
         stop/1 
@@ -73,14 +74,46 @@ create_table_in([{NodeName,_NodeVector}=CurNode|Tail],
     TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
     case hm_misc:is_alive(TargetName) of 
         true ->
-            {ok, TableInfo} =  gen_server:call({global, TargetName}, {create_table, DomainName, TableName, AttList}),
+            {ok, {DTName, Tid}} =  gen_server:call({global, TargetName}, {create_table, DomainName, TableName, AttList}),
             TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
-            gen_server:call({global, TargetName_ds}, {register_table, TableInfo}),
-            create_table_in(Tail, FailedList, DomainName, TableName, AttList);
+            case gen_server:call({global, TargetName_ds}, {register_table, {DTName, Tid}}) of
+                {ok, register_table, DTName} ->
+                    create_table_in(Tail, FailedList, DomainName, TableName, AttList);
+                _Any ->
+                    create_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
+            end;
         false ->
             create_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
     end.
 
+
+%% spec(drop_table(string(), string(), list()) -> {ok, {list(),list()}}).
+drop_table(DomainName, TableName) ->
+    NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+
+    % table is made on every node in successor list of correspondent node
+    {ok, FailedList} = drop_table_in(NodeList, [], DomainName, TableName),
+    {ok, {NodeList, FailedList}}.
+
+
+drop_table_in([], FailedList, _DomainName, _TableName) ->
+    {ok, FailedList};
+drop_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
+                  FailedList, DomainName, TableName) ->
+    TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
+    case hm_misc:is_alive(TargetName) of 
+        true ->
+            {ok, delete_table, DTName} =  gen_server:call({global, TargetName}, {drop_table, DomainName, TableName}),
+            TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
+            case gen_server:call({global, TargetName_ds}, {unregister_table, DTName}) of
+                {ok, unregister_table} ->
+                    drop_table_in(Tail, FailedList, DomainName, TableName);
+                _Any -> 
+                    drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
+            end;
+        false ->
+            drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
+    end.
 
 handle_cast(stop, State) ->
     {stop, normal, State}.
@@ -94,10 +127,18 @@ handle_call({get_table_info, DTName}, _From, {_RegName, TblList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TblList),
     {reply, ReplyData, State};
 
-handle_call({make_table, DomainName, TableName, AttList}, _From, {RegName, TblList}) ->
+%% @doc index table is 
+handle_call({create_table, DomainName, TableName, AttList}, _From, {RegName, TblList}) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    TableId = ets:new(DTName, [duplicate_bag, public]),
-    {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}}.
+    TableId = ets:new(DTName, [bag, named_table, public]),
+    {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}};
+
+handle_call({drop_table, DomainName, TableName}, _From, {RegName, TblList}) ->
+    DTName=list_to_atom(DomainName ++ TableName),
+    ets:delete(DTName),
+    NewState = lists:keydelete(DTName, 2, TblList),
+    {reply, {ok, delete_table, DTName}, {RegName, NewState}}.
+
 
 name(Name) when is_list(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ Name);
 name(Name) when is_atom(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(Name)).

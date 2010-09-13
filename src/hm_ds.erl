@@ -131,9 +131,9 @@ get_in(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
     {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList),
-    {ok, Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
+    {ok, _Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
     {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
-    {ok, DataNodeList} = get_data_node_list(IndexDsNode, Tid, FlistIndex, MS),
+    {ok, DataNodeList} = get_data_node_list(IndexDsNode, DTName, FlistIndex, MS),
     scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond).
 
 
@@ -172,8 +172,8 @@ get_query_spec(Cond, AttList) ->
     {ok, MS, MSData, FlistIndex, FlistData}.
 
 
-get_data_node_list(IndexDsNode, Tid, FlistIndex, MS) ->
-    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, Tid, FlistIndex, MS}),
+get_data_node_list(IndexDsNode, DTName, FlistIndex, MS) ->
+    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, DTName, FlistIndex, MS}),
     DataNodeList = 
         sets:to_list(
             sets:from_list(
@@ -415,7 +415,12 @@ handle_cast(stop, State) ->
 
 handle_call({register_table, {TableName, TableId}}, _From, {RegName, TableList}) ->
     ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, {TableName, TableId}]),
-    {reply, {ok, register_table}, {RegName, [{TableName, TableId}|TableList]}};
+    {reply, {ok, register_table, TableName}, {RegName, [{TableName, TableId}|TableList]}};
+
+handle_call({unregister_table, TableName}, _From, {RegName, TableList}) ->
+    ?info_p("unregister_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
+    NewTableList = lists:keydelete(TableName, 1, TableList),
+    {reply, {ok, unregister_table}, {RegName, NewTableList}};
 
 handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
     ReplyData = hm_misc:search_table_attlist(DTName, TableList),
@@ -426,8 +431,8 @@ handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, 
     Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
     {reply, {ok, lists:usort(Reply)}, State};
 
-handle_call({select_table, Tid, FlistModified, MS}, _From, State) ->
-    Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
+handle_call({select_table, DTName, FlistModified, MS}, _From, State) ->
+    Reply = ets:select(DTName, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, lists:usort(Reply)}, State};
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
