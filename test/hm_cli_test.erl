@@ -309,12 +309,12 @@ cget_in(Len) ->
 
 rstore_in(0, _Domain, _Tbl, [_,_,_]) -> ok;
 rstore_in(Len, Domain, Tbl, [Fld1,Fld2,Fld3]) ->
-    hm_cli:store(Domain, Tbl, [{Fld1, xxx},{Fld2, Len},{Fld3, textfile1}]),
+    hm_cli:rstore(Domain, Tbl, [{Fld1, xxx},{Fld2, Len},{Fld3, textfile1}]),
     rstore_in(Len - 1, Domain, Tbl, [Fld1,Fld2,Fld3]).
 
 rget_in(0, _Domain, _Tbl) -> ok;
 rget_in(Len, Domain, Tbl) ->
-    {ok, [[xxx,Len,_]]} = hm_cli:get(Domain, Tbl, "Fld1 == xxx and Fld2 == " ++ integer_to_list(Len)),
+    {ok, [[xxx,Len,_]]} = hm_cli:rget(Domain, Tbl, "Fld1 == xxx and Fld2 == " ++ integer_to_list(Len)),
     rget_in(Len - 1, Domain, Tbl).
 
 
