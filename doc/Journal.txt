@@ -9,11 +9,14 @@ TODO:
 6. index of ets
 7. interface of memcached
 
-TODO:2010-9-12
-need to check input of query condition(API is baaaaad..)
-test script for range query
+TODO:2010-9-13
 table -> table name, and crash deal
-flatten the list when return data
+remove API
+
+
+TODO:2010-9-12
+OK: need to check input of query condition(API is baaaaad..)
+OK:test script for range query
 
 
 
