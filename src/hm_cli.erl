@@ -15,14 +15,14 @@
         cget/1,
         cstore/2,
         get/1,
-        get/3,
+        rget/3,
         get_node_names/0,
         get_table_info/2,
         log_start/0,
         log_stop/0,
         make_table/3,
         store/2,
-        store/3
+        rstore/3
         ]).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -46,7 +46,7 @@ cstore(Key, Value) ->
     hm_ds:cstore(Key, Value).
 
 
-%% @spec(store(DomainName::string(), TableName::string(), KVList::list()) -> 
+%% @spec(rstore(DomainName::string(), TableName::string(), KVList::list()) -> 
 %%           {ok, Cnt::integer()} |  
 %%           {partial, Cnt::integer()} |
 %%           {ng, Msg::string} |
@@ -58,8 +58,8 @@ cstore(Key, Value) ->
 %%      format of KVList::[{FldName::string(), Vaue::any()}]
 %%      Note: table for this domain & table name, and field definition need to be
 %%            made in advance.
-store(DomainName, TableName, KVList) ->
-    hm_ds:store(DomainName, TableName, KVList).
+rstore(DomainName, TableName, KVList) ->
+    hm_ds:rstore(DomainName, TableName, KVList).
 
 %% @spec(get(Key::atom()|string()|integer()) -> {ok, Result::Recset}|
 %%                                              {error, nodata}).
@@ -77,18 +77,17 @@ get(Key) ->
 cget(Key) ->
     hm_ds:cget(Key).
 
-%% @spec(get(DomainName::string(), TableName::string(), Cond::string()) ->
+%% @spec(rget(DomainName::string(), TableName::string(), Cond::string()) ->
 %%           {ok, Result}|{error, Msg}).
 %%
-%% @doc get API for table format.
+%% @doc rget API for table format.
 %%      - format of Cond::string
-%%      - available relational operator::==|!=|<|>|<=|>=
+%%      - available relational operator::==|!=|<|>|[=<|<=]|[>=|=>]
 %%      - available logical operator::and|or
 %%      - parenthesis also available::(|)
 %%      - name of fields and tables need to be stringnum(start with character)
-get(DomainName, TableName, Cond) ->
-    hm_ds:get(DomainName, TableName, Cond).
-
+rget(DomainName, TableName, Cond) ->
+    hm_ds:rget(DomainName, TableName, Cond).
 
 %% @spec(get_node_names() -> {ok, NameList::list()}).
 %%

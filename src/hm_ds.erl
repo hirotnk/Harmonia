@@ -84,14 +84,9 @@ cstore(Key, Value) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
 %%
 %% @doc Range Query API
+%%      Returned list does not include DTName
 get(DomainName, TableName, Cond) ->
-    try get_in(DomainName, TableName, Cond) of
-        {ok, Result} -> {ok, Result};
-        {error, Msg} -> {error, Msg}
-    catch
-        exit:Reason -> {exit, Reason};
-        error:Error -> {error, Error}
-    end.
+    get_in(DomainName, TableName, Cond).
 
 %% @spec(store(DomainName::string(), TableName::string(), KVList)) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
@@ -135,7 +130,7 @@ cstore_in(Key, Value) ->
 get_in(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
-    {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList, DTName, Cond),
+    {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList),
     {ok, Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
     {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
     {ok, DataNodeList} = get_data_node_list(IndexDsNode, Tid, FlistIndex, MS),
@@ -249,7 +244,7 @@ lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) -
     end.
 
 
-lookup_index_table_node(NodeList, DTNameTable, Cond) ->
+lookup_index_table_node(NodeList) ->
     case hm_misc:get_first_alive_entry(NodeList) of 
         {error, none} -> {error, no_node_available};
         {IndexNode, _Vector} ->
@@ -371,7 +366,7 @@ store_to_succlist([], _TableName, _Key, _Value, {Len, Cnt}) ->
     case Cnt of
         Len  -> {ok, Cnt};
         0    -> {ng, Cnt};
-        Else -> {partial, Cnt}
+        _Else -> {partial, Cnt}
     end;
 store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
     {RouterName, _} = hd(SuccList),
