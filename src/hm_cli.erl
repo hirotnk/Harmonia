@@ -24,6 +24,7 @@
         store/2,
         store/3
         ]).
+-include_lib("eunit/include/eunit.hrl").
 
 %% @spec(store(Key::atom()|string()|integer(), Value::any()) -> 
 %%           {ok, Cnt::integer()} | 
@@ -142,3 +143,20 @@ log_stop_in([]) -> ok;
 log_stop_in([{_Name, NodeName}|NameList]) ->
     rpc:call(NodeName, hm_event_mgr, delete_file_handler, []),
     log_stop_in(NameList).
+
+%% ----------------------------------------------------------------------------
+%% EUnit Test Functions
+%% ----------------------------------------------------------------------------
+
+rangeq_test_() -> 
+    [
+        ?_assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{ok, 5}),
+        ?_assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{ok, 5}),
+        ?_assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{ok, 5}),
+        ?_assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{ok, 5}),
+
+        ?_assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 32")),
+        ?_assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 150")),
+        ?_assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 3000")),
+        ?_assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 9000"))
+    ].

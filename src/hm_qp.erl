@@ -90,7 +90,7 @@ scan_ret(Tokens, {IsKey, AttList}) ->
     scan_ret_in(Tokens, {IsKey, AttList}, []).
 
 scan_ret_in([], {_IsKey, _AttList}, Result) -> lists:reverse(Result);
-scan_ret_in([{identifier, String}|Tokens], {IsKey, AttList}, Result) when IsKey =:= true ->
+scan_ret_in([{identifier, String}|Tokens], {IsKey, AttList}, Result) when IsKey =:= index ->
     Token = lists:reverse(String),
     case find_nth(Token, AttList) of 
         {no_field, _} -> 

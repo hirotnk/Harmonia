@@ -9,14 +9,15 @@
 EBIN = ../ebin
 EDBG = -Ddebug
 CFLG = -W +warn_unused_vars +warn_unused_import +debug_info 
-PA = /usr/local/lib/erlang/lib/eunit-2.1.5
+PA = /usr/local/lib/erlang/lib/eunit-2.1.5/ebin
 ERL = erl
 GEN = beam
 ERLC_EMULATOR = erl -boot start_clean
-PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin
+PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/bin
 SOURCE = hm_cli_test.erl \
 	hm_cache_test.erl \
-	hm_test.erl
+	hm_test.erl \
+	hm_qp_test.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)
 CODE = $(SOURCE:%.erl=$(EBIN)/%.beam) 
@@ -41,7 +42,7 @@ clean:
 # code to compile
 
 #Where include files are stored ".hrl"
-EFLAGS = -I../include:/usr/local/lib/erlang/lib
+EFLAGS = -I../include -I/usr/local/lib/erlang/lib
 
 #######################################################################
 # Do not edit below this line                                         #

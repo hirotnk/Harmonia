@@ -85,12 +85,20 @@ cstore(Key, Value) ->
 %%
 %% @doc Range Query API
 get(DomainName, TableName, Cond) ->
-    get_in(DomainName, TableName, Cond).
+    try get_in(DomainName, TableName, Cond) of
+        {ok, Result} -> {ok, Result};
+        {error, Msg} -> {error, Msg}
+    catch
+        exit:Reason -> {exit, Reason};
+        error:Error -> {error, Error}
+    end.
 
-%% @spec(store(DomainName::string(), TableName::string(), Cond::string())) ->
+%% @spec(store(DomainName::string(), TableName::string(), KVList)) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
 %%
 %% @doc Range Query API
+%%      KVList: [{FieldName::string(), Value::any()}]
+%%
 store(DomainName, TableName, KVList) ->
     store_in(DomainName, TableName, KVList).
 
@@ -127,39 +135,62 @@ cstore_in(Key, Value) ->
 get_in(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
-    case lookup_index_table(NodeList, DTName, Cond) of
-        {ok, DataNodeList, AttList} ->
+    {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList, DTName, Cond),
+    {ok, Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
+    {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
+    {ok, DataNodeList} = get_data_node_list(IndexDsNode, Tid, FlistIndex, MS),
+    scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond).
 
-            {ok, _, [MSData]} = make_select_cond(AttList, Cond, fun ?MODULE:fun_for_index/2, data),
 
-            % this field list should include data fields
-            {_, Flist} = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
-            NodeCnt = length(DataNodeList), Ref = make_ref(),
+scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond) ->
+    Ref = make_ref(),
 
-            % spawn a gathering process
-            LoopPid = spawn_link( ?MODULE, gather_get, [NodeCnt, self(), Ref, []]),
+    % spawn a gathering process
+    LoopPid = spawn_link( ?MODULE, gather_get, [length(DataNodeList), self(), Ref, []]),
 
-            % spawn a scattering processes for each node
-            lists:foreach(
-                   fun(El) -> 
-                        spawn_link(
-                            ?MODULE, 
-                            lookup_data_table_solo, 
-                            [El, DTName, Flist, MSData, LoopPid, Ref]
-                        )
-                   end, 
-                   DataNodeList
-            ),
-            % receive total result
-            receive
-                {ok, Ref, Result} -> {ok, Result};
-                {error, Ref, Msg} -> {error, Msg} 
-            after ?TIMEOUT_GET ->
-                ?error_p("get timeout :DomainName:[~p] TabName:[~p] Cond:[~p]~n",
-                        get, [DomainName, TableName, Cond]),
-                {error, timeout}
-            end;
-        {error, Msg} -> {error, Msg}
+    % spawn a scattering processes for each node
+    lists:foreach(
+           fun(El) -> 
+                spawn_link(
+                    ?MODULE, 
+                    lookup_data_table_solo, 
+                    [El, DTName, FlistData, MSData, LoopPid, Ref]
+                )
+           end, 
+           DataNodeList
+    ),
+    % receive total result
+    receive
+        {ok, Ref, Result} -> {ok, Result};
+        {error, Ref, Msg} -> {error, Msg} 
+    after ?TIMEOUT_GET ->
+        ?error_p("get timeout :DomainName:[~p] TabName:[~p] Cond:[~p]~n",
+                get, [DomainName, TableName, Cond]),
+        {error, timeout}
+    end.
+
+get_query_spec(Cond, AttList) ->
+    MS     = hm_qp:parse(hm_qp:scan(Cond, {index, AttList})),
+    [MSData] = hm_qp:parse(hm_qp:scan(Cond, {data, AttList})),
+    {_, FlistIndex} = lists:foldl(fun ?MODULE:fun_for_index/2, {1,[]}, AttList),
+    {_, FlistData}  = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
+    {ok, MS, MSData, FlistIndex, FlistData}.
+
+
+get_data_node_list(IndexDsNode, Tid, FlistIndex, MS) ->
+    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, Tid, FlistIndex, MS}),
+    DataNodeList = 
+        sets:to_list(
+            sets:from_list(
+                lists:foldl(fun (Node, AccIn) -> [hd(Node)] ++ AccIn  end, [], RowList))),
+    {ok, DataNodeList}.
+
+
+lookup_index_table_attribute(IndexTableNode, DTNameTable) ->
+    case gen_server:call({global, IndexTableNode}, {get_table_info, DTNameTable}) of
+        {ok, Tid, AttList} -> {ok, Tid, AttList};
+        {error, Msg} -> 
+            {error, Msg}
     end.
 
 store_in(DomainName, TableName, KVList) ->
@@ -217,35 +248,14 @@ lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) -
                 LoopPid ! {ok, Ref, lists:map(fun({_,Rec}) -> Rec end, RowList)}
     end.
 
-make_select_cond(AttList, Cond, Fun, index) ->
-    {_, FlistModified} = lists:foldl(Fun, {1,[]}, AttList),
-    MS = hm_qp:parse(hm_qp:scan(Cond, {true, AttList})),
-    {ok, FlistModified, MS};
-make_select_cond(AttList, Cond, Fun, data) ->
-    {_, FlistModified} = lists:foldl(Fun, {1,[]}, AttList),
-    MS = hm_qp:parse(hm_qp:scan(Cond, {false, AttList})),
-    {ok, FlistModified, MS}.
 
-lookup_index_table(NodeList, DTNameTable, Cond) ->
+lookup_index_table_node(NodeList, DTNameTable, Cond) ->
     case hm_misc:get_first_alive_entry(NodeList) of 
         {error, none} -> {error, no_node_available};
         {IndexNode, _Vector} ->
+            IndexTableNode = hm_table:name(atom_to_list(IndexNode) -- ?PROCESS_PREFIX),
             IndexNodeDs = name(atom_to_list(IndexNode) -- ?PROCESS_PREFIX),
-            IndexNodeTable = hm_table:name(atom_to_list(IndexNode) -- ?PROCESS_PREFIX),
-            case gen_server:call({global, IndexNodeTable}, {get_table_info, DTNameTable}) of
-                {ok, Tid, AttList} ->
-                    Fun = fun ?MODULE:fun_for_index/2,
-                    {ok, FlistModified, MS} = make_select_cond(AttList, Cond, Fun, index),
-                    {ok, RowList} = 
-                        gen_server:call({global, IndexNodeDs}, {select_table, Tid, FlistModified, MS}),
-                    UniqNodeList = 
-                        sets:to_list(
-                            sets:from_list(
-                                lists:foldl(fun ({Node,_}, AccIn) -> AccIn ++ [Node] end, [], RowList))),
-                    {ok, UniqNodeList, AttList};
-                {error, Msg} -> 
-                    {error, Msg}
-            end
+            {ok, IndexTableNode, IndexNodeDs}
     end.
 
 fun_for_index({_Fname, Bool, _},{N,FList}) ->
@@ -358,13 +368,10 @@ store_in_to(RouterName, TableName, {Key, Value}) ->
 % the successor list here includes target node itself, and
 % tail of successor list
 store_to_succlist([], _TableName, _Key, _Value, {Len, Cnt}) -> 
-    case Len =:= Cnt of
-        true -> {ok, Cnt};
-        false -> 
-            case Cnt =:= 0 of
-                true -> {ng, Cnt};
-                false -> {partial, Cnt}
-            end
+    case Cnt of
+        Len  -> {ok, Cnt};
+        0    -> {ng, Cnt};
+        Else -> {partial, Cnt}
     end;
 store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
     {RouterName, _} = hd(SuccList),
@@ -422,11 +429,11 @@ handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
 handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
     % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
     Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
-    {reply, {ok, Reply}, State};
+    {reply, {ok, lists:usort(Reply)}, State};
 
 handle_call({select_table, Tid, FlistModified, MS}, _From, State) ->
     Reply = ets:select(Tid, [{{'$1', FlistModified},MS,['$$']}]),
-    {reply, {ok, Reply}, State};
+    {reply, {ok, lists:usort(Reply)}, State};
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
     case lists:keyfind(TableName, 1, TableList) of 
