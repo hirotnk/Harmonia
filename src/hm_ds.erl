@@ -20,13 +20,13 @@
         fun_for_data/2,
         fun_for_index/2,
         get/1,
-        get/3,
+        rget/3,
         name/1,
         start_link/1,
         stop/0,
         stop/1,
         store/2,
-        store/3
+        rstore/3
         ]).
 -export([
         gather_get/4,
@@ -80,21 +80,21 @@ store(Key, Value) ->
 cstore(Key, Value) ->
     cstore_in(Key, Value).
 
-%% @spec(get(DomainName::string(), TableName::string(), Cond::string())) ->
+%% @spec(rget(DomainName::string(), TableName::string(), Cond::string())) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
 %%
 %% @doc Range Query API
 %%      Returned list does not include DTName
-get(DomainName, TableName, Cond) ->
+rget(DomainName, TableName, Cond) ->
     get_in(DomainName, TableName, Cond).
 
-%% @spec(store(DomainName::string(), TableName::string(), KVList)) ->
+%% @spec(rstore(DomainName::string(), TableName::string(), KVList)) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
 %%
 %% @doc Range Query API
 %%      KVList: [{FieldName::string(), Value::any()}]
 %%
-store(DomainName, TableName, KVList) ->
+rstore(DomainName, TableName, KVList) ->
     store_in(DomainName, TableName, KVList).
 
 
