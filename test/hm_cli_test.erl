@@ -1,19 +1,19 @@
 -module(hm_cli_test).
 -export([
-        get/1,
         cget/1,
+        create_table/0,
+        cstore/1,
+        get/1,
         get_node_name/0,
-        rget/1,
-        rangeq_test_all/0,
         rangeq_test0/0,
         rangeq_test1/0,
         rangeq_test2/0,
         rangeq_test3/0,
         rangeq_test4/0,
         rangeq_test5/0,
-        cstore/1,
+        rangeq_test_all/0,
+        rget/1,
         rstore/1,
-        make_table/0,
         store/1,
         test_all/0,
         test_all/1,
@@ -48,7 +48,7 @@ test_all(N) ->
             {"get(~p)        OK....\n", fun hm_cli_test:get/1, N, ok},
             {"cstore(~p)     OK....\n", fun cstore/1,          N, ok}, 
             {"cget(~p)       OK....\n", fun cget/1,            N, ok},
-            {"make_table()   OK....\n", fun make_table/0,  {ok, any}},
+            {"create_table() OK....\n", fun create_table/0,  {ok, any}},
             {"rstore(~p)     OK....\n", fun rstore/1,          N, ok},
             {"rget(~p)       OK....\n", fun rget/1,            N, ok},
             {"..end\n"}
@@ -80,7 +80,7 @@ test_perf(N) ->
             {"get           OK....[~20.10f] sec\n", get, N, ok},
             {"cstore        OK....[~20.10f] sec\n", cstore, N, ok}, 
             {"cget          OK....[~20.10f] sec\n", cget,   N, ok},
-            {"make_table    OK....[~20.10f] sec\n", make_table, {ok, any}},
+            {"create_table  OK....[~20.10f] sec\n", create_table, {ok, any}},
             {"rstore        OK....[~20.10f] sec\n", rstore, N, ok},
             {"rget          OK....[~20.10f] sec\n", rget,   N, ok},
             {"..end\n"}
@@ -95,11 +95,11 @@ get(Len) -> get_in(Len).
 
 cget(Len) -> cget_in(Len).
 
-make_table() ->
+create_table() ->
     Domain = "Domain1",
     Tbl   = "Tbl2",
     FldList = [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}],
-    hm_cli:make_table(Domain, Tbl, FldList).
+    hm_cli:create_table(Domain, Tbl, FldList).
 
 rstore(Len) ->
     Domain = "Domain1",
@@ -279,7 +279,7 @@ rangeq_test5() ->
     io:format("[~p ~p ~p ~p]:ok~n",["case6",D,T,Q6]),
 
     {ok, RowList7} = hm_cli:get(D, T, Q7),
-    lists:foreach(fun([M,N,O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
+    lists:foreach(fun([M,N,_O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 
 %% ----------------------------------------------------------------------------
