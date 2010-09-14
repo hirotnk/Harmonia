@@ -14,6 +14,7 @@
 -export([
         cget/1,
         cstore/2,
+        drop_table/2,
         get/1,
         rget/3,
         get_node_names/0,
@@ -105,6 +106,16 @@ get_node_names() ->
 %%      TODO: this return value make sense??
 create_table(DomainName, TableName, AttList) ->
     hm_table:create_table(DomainName, TableName, AttList).
+
+%% @spec(drop_table(DomainName::string(), TableName::string()) ->
+%%           {ok, {NodeList::list(), FailedList::list()}}).
+%%
+%% @doc drop index table
+%%      returns list of nodes in which tables were created, 
+%%      and list of nodes which table creation failed
+%%      TODO: this return value make sense??
+drop_table(DomainName, TableName) ->
+    hm_table:drop_table(DomainName, TableName).
 
 
 %% @spec(get_table_info(DomainName::string(), TableName::string()) ->

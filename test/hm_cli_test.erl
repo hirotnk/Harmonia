@@ -3,6 +3,7 @@
         cget/1,
         create_table/0,
         cstore/1,
+        drop_table/0,
         get/1,
         get_node_name/0,
         rangeq_test0/0,
@@ -36,8 +37,10 @@ test_all(N) ->
                 Func(K),
                 io:format(Format, [K]);
             ({Format, Func, Ret}) when Ret =:= {ok, any} ->
-                {ok, _} = Func(),
-                io:format(Format);
+                case Func() of
+                    {ok, _} -> io:format(Format,["OK"]);
+                    Msg -> io:format(Format,[Msg])
+                end;
            ({Format}) ->
                 io:format(Format)
         end,
@@ -48,7 +51,8 @@ test_all(N) ->
             {"get(~p)        OK....\n", fun hm_cli_test:get/1, N, ok},
             {"cstore(~p)     OK....\n", fun cstore/1,          N, ok}, 
             {"cget(~p)       OK....\n", fun cget/1,            N, ok},
-            {"create_table() OK....\n", fun create_table/0,  {ok, any}},
+            {"drop_table()   ~p....\n", fun drop_table/0,    {ok, any}},
+            {"create_table() ~p....\n", fun create_table/0,  {ok, any}},
             {"rstore(~p)     OK....\n", fun rstore/1,          N, ok},
             {"rget(~p)       OK....\n", fun rget/1,            N, ok},
             {"..end\n"}
@@ -80,6 +84,7 @@ test_perf(N) ->
             {"get           OK....[~20.10f] sec\n", get, N, ok},
             {"cstore        OK....[~20.10f] sec\n", cstore, N, ok}, 
             {"cget          OK....[~20.10f] sec\n", cget,   N, ok},
+            {"drop_table()  OK....[~20.10f] sec\n", drop_table,   {ok, any}},
             {"create_table  OK....[~20.10f] sec\n", create_table, {ok, any}},
             {"rstore        OK....[~20.10f] sec\n", rstore, N, ok},
             {"rget          OK....[~20.10f] sec\n", rget,   N, ok},
@@ -100,6 +105,11 @@ create_table() ->
     Tbl   = "Tbl2",
     FldList = [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}],
     hm_cli:create_table(Domain, Tbl, FldList).
+
+drop_table() ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    hm_cli:drop_table(Domain, Tbl).
 
 rstore(Len) ->
     Domain = "Domain1",
@@ -125,10 +135,10 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{partial, 4}),
-    ?assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{partial, 4}),
-    ?assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{partial, 4}),
-    ?assertEqual(hm_cli:store("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{partial, 4}).
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{partial, 4}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{partial, 4}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{partial, 4}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{partial, 4}).
 
 rangeq_test1() -> 
     io:format("rangeq_test1 start~n"),
@@ -138,30 +148,30 @@ rangeq_test1() ->
     Q3 = "Fld2 == 3000",
     Q4 = "Fld2 == 9000",
 
-    ?assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:get(D, T, Q1)),
+    ?assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:rget(D, T, Q1)),
     io:format("[~p ~p ~p ~p]:ok~n",["case1", D,T,Q1]),
-    ?assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:get(D, T, Q2)),
+    ?assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:rget(D, T, Q2)),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
-    ?assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:get(D, T, Q3)),
+    ?assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:rget(D, T, Q3)),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
-    ?assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:get(D, T, Q4)),
+    ?assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:rget(D, T, Q4)),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]).
 
 rangeq_test2() -> 
     io:format("rangeq_test2 start~n"),
-    {ok, RowList1} = hm_cli:get(D = "Domain1", T = "Tbl2", Q1 = "Fld2 != 32"),
+    {ok, RowList1} = hm_cli:rget(D = "Domain1", T = "Tbl2", Q1 = "Fld2 != 32"),
     lists:foreach(fun([_,N,_]) -> ?assert(N =/= 32) end, RowList1),
     io:format("[~p ~p ~p ~p]:ok~n",["case1",D,T,Q1]),
 
-    {ok, RowList2} = hm_cli:get(D = "Domain1", T = "Tbl2", Q2 = "Fld2 != 150"),
+    {ok, RowList2} = hm_cli:rget(D = "Domain1", T = "Tbl2", Q2 = "Fld2 != 150"),
     lists:foreach(fun([_,N,_]) -> ?assert(N =/= 150)  end, RowList2),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
 
-    {ok, RowList3} = hm_cli:get(D = "Domain1", T = "Tbl2", Q3 = "Fld2 != 3000"),
+    {ok, RowList3} = hm_cli:rget(D = "Domain1", T = "Tbl2", Q3 = "Fld2 != 3000"),
     lists:foreach(fun([_,N,_]) -> ?assert(N =/= 3000) end, RowList3),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
 
-    {ok, RowList4} = hm_cli:get(D = "Domain1", T = "Tbl2", Q4 = "Fld2 != 9000"),
+    {ok, RowList4} = hm_cli:rget(D = "Domain1", T = "Tbl2", Q4 = "Fld2 != 9000"),
     lists:foreach(fun([_,N,_]) -> ?assert(N =/= 9000) end, RowList4),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]).
 
@@ -177,29 +187,29 @@ rangeq_test3() ->
     Q7 = "Fld2 < 3000",
     Q8 = "Fld2 < 9000",
 
-    {ok, RowList1} = hm_cli:get(D, T, Q1),
+    {ok, RowList1} = hm_cli:rget(D, T, Q1),
     lists:foreach(fun([_,N,_]) -> ?assert(N > 32) end, RowList1),
     io:format("[~p ~p ~p ~p]:ok~n",["case1",D,T,Q1]),
-    {ok, RowList2} = hm_cli:get(D, T, Q2),
+    {ok, RowList2} = hm_cli:rget(D, T, Q2),
     lists:foreach(fun([_,N,_]) -> ?assert(N > 150) end, RowList2),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
-    {ok, RowList3} = hm_cli:get(D, T, Q3),
+    {ok, RowList3} = hm_cli:rget(D, T, Q3),
     lists:foreach(fun([_,N,_]) -> ?assert(N > 3000) end, RowList3),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
-    {ok, RowList4} = hm_cli:get(D, T, Q4),
+    {ok, RowList4} = hm_cli:rget(D, T, Q4),
     lists:foreach(fun([_,N,_]) -> ?assert(N > 9000) end, RowList4),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]),
 
-    {ok, RowList5} = hm_cli:get(D, T, Q5),
+    {ok, RowList5} = hm_cli:rget(D, T, Q5),
     lists:foreach(fun([_,N,_]) -> ?assert(N < 32) end, RowList5),
     io:format("[~p ~p ~p ~p]:ok~n",["case5",D,T,Q5]),
-    {ok, RowList6} = hm_cli:get(D, T, Q6),
+    {ok, RowList6} = hm_cli:rget(D, T, Q6),
     lists:foreach(fun([_,N,_]) -> ?assert(N < 150) end, RowList6),
     io:format("[~p ~p ~p ~p]:ok~n",["case6",D,T,Q6]),
-    {ok, RowList7} = hm_cli:get(D, T, Q7),
+    {ok, RowList7} = hm_cli:rget(D, T, Q7),
     lists:foreach(fun([_,N,_]) -> ?assert(N < 3000) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]),
-    {ok, RowList8} = hm_cli:get(D, T, Q8),
+    {ok, RowList8} = hm_cli:rget(D, T, Q8),
     lists:foreach(fun([_,N,_]) -> ?assert(N < 9000) end, RowList8),
     io:format("[~p ~p ~p ~p]:ok~n",["case8",D,T,Q8]).
 
@@ -215,29 +225,29 @@ rangeq_test4() ->
     Q7 = "Fld2 <= 3000",
     Q8 = "Fld2 <= 9000",
 
-    {ok, RowList1} = hm_cli:get(D, T, Q1),
+    {ok, RowList1} = hm_cli:rget(D, T, Q1),
     lists:foreach(fun([_,N,_]) -> ?assert(N >= 32) end, RowList1),
     io:format("[~p ~p ~p ~p]:ok~n",["case1",D,T,Q1]),
-    {ok, RowList2} = hm_cli:get(D, T, Q2),
+    {ok, RowList2} = hm_cli:rget(D, T, Q2),
     lists:foreach(fun([_,N,_]) -> ?assert(N >= 150) end, RowList2),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
-    {ok, RowList3} = hm_cli:get(D, T, Q3),
+    {ok, RowList3} = hm_cli:rget(D, T, Q3),
     lists:foreach(fun([_,N,_]) -> ?assert(N >= 3000) end, RowList3),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q3]),
-    {ok, RowList4} = hm_cli:get(D, T, Q4),
+    {ok, RowList4} = hm_cli:rget(D, T, Q4),
     lists:foreach(fun([_,N,_]) -> ?assert(N >= 9000) end, RowList4),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q4]),
 
-    {ok, RowList5} = hm_cli:get(D, T, Q5),
+    {ok, RowList5} = hm_cli:rget(D, T, Q5),
     lists:foreach(fun([_,N,_]) -> ?assert(N =< 32) end, RowList5),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q5]),
-    {ok, RowList6} = hm_cli:get(D, T, Q6),
+    {ok, RowList6} = hm_cli:rget(D, T, Q6),
     lists:foreach(fun([_,N,_]) -> ?assert(N =< 150) end, RowList6),
     io:format("[~p ~p ~p ~p]:ok~n",["case5",D,T,Q6]),
-    {ok, RowList7} = hm_cli:get(D, T, Q7),
+    {ok, RowList7} = hm_cli:rget(D, T, Q7),
     lists:foreach(fun([_,N,_]) -> ?assert(N =< 3000) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case6",D,T,Q7]),
-    {ok, RowList8} = hm_cli:get(D, T, Q8),
+    {ok, RowList8} = hm_cli:rget(D, T, Q8),
     lists:foreach(fun([_,N,_]) -> ?assert(N =< 9000) end, RowList8),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q8]).
 
@@ -254,31 +264,31 @@ rangeq_test5() ->
     Q6 = "Fld1 == yyy or Fld2 == 32                         ",
     Q7 = "Fld1 == yyy and Fld2 == 150                       ",
 
-    {ok, RowList1} = hm_cli:get(D, T, Q1),
+    {ok, RowList1} = hm_cli:rget(D, T, Q1),
     lists:foreach(fun([_,N,_]) -> ?assert((N >= 32) and (N =< 150)) end, RowList1),
     io:format("[~p ~p ~p ~p]:ok~n",["case1",D,T,Q1]),
 
-    {ok, RowList2} = hm_cli:get(D, T, Q2),
+    {ok, RowList2} = hm_cli:rget(D, T, Q2),
     lists:foreach(fun([_,N,_]) -> ?assert((N >= 3000) or (N =< 150)) end, RowList2),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
 
-    {ok, RowList3} = hm_cli:get(D, T, Q3),
+    {ok, RowList3} = hm_cli:rget(D, T, Q3),
     lists:foreach(fun([_,N,O]) -> ?assert(((N >= 3000) or (N =< 150)) and (O =:= textfile1)) end, RowList3),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
 
-    {ok, RowList4} = hm_cli:get(D, T, Q4),
+    {ok, RowList4} = hm_cli:rget(D, T, Q4),
     lists:foreach(fun([_,N,_]) -> ?assert(((N >= 3000) and (N =< 150))) end, RowList4),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]),
 
-    {ok, RowList5} = hm_cli:get(D, T, Q5),
+    {ok, RowList5} = hm_cli:rget(D, T, Q5),
     lists:foreach(fun([M,N,_]) -> ?assert(((M =:= yyy) and (N =:= 150))) end, RowList5),
     io:format("[~p ~p ~p ~p]:ok~n",["case5",D,T,Q5]),
 
-    {ok, RowList6} = hm_cli:get(D, T, Q6),
+    {ok, RowList6} = hm_cli:rget(D, T, Q6),
     lists:foreach(fun([M,N,_]) -> ?assert(((M =:= yyy) or (N =:= 32))) end, RowList6),
     io:format("[~p ~p ~p ~p]:ok~n",["case6",D,T,Q6]),
 
-    {ok, RowList7} = hm_cli:get(D, T, Q7),
+    {ok, RowList7} = hm_cli:rget(D, T, Q7),
     lists:foreach(fun([M,N,_O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 

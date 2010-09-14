@@ -15,21 +15,26 @@
 -vsn('0.1').
 
 -export([
+        cdel/1,
         cget/1,
         cstore/2,
+        del/1,
         fun_for_data/2,
         fun_for_index/2,
         get/1,
-        rget/3,
         name/1,
+        rdel/3,
+        rget/3,
+        rstore/3,
         start_link/1,
         stop/0,
         stop/1,
-        store/2,
-        rstore/3
+        store/2
         ]).
 -export([
         gather_get/4,
+        gather_delete/4,
+        delete_data_table_solo/6,
         lookup_data_table_solo/6
         ]).
 -export([init/1, terminate/2, handle_call/3, handle_cast/2]).
@@ -53,7 +58,7 @@ terminate(Reason, State) ->
     ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
     ok.
 
-%% @spec(cget(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%% @spec(get(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
 %%
 %% @doc Key::atom()|string()|integer()
 get(Key) ->
@@ -65,6 +70,14 @@ get(Key) ->
 %%      simple K/V store with cache enabled
 cget(Key) ->
     cget_in(Key).
+
+%% @spec(rget(DomainName::string(), TableName::string(), Cond::string())) ->
+%%              {ok, Rec::list()} | {error, Msg::any()}
+%%
+%% @doc Range Query API
+%%      Returned list does not include DTName
+rget(DomainName, TableName, Cond) ->
+    get_in(DomainName, TableName, Cond).
 
 %% @spec(store(Key::atom(), Value::any() ) -> 
 %%              {ok, Cnt::integer()} | {partial, Cnt::integer()} | {ng, Msg::string}
@@ -80,14 +93,6 @@ store(Key, Value) ->
 cstore(Key, Value) ->
     cstore_in(Key, Value).
 
-%% @spec(rget(DomainName::string(), TableName::string(), Cond::string())) ->
-%%              {ok, Rec::list()} | {error, Msg::any()}
-%%
-%% @doc Range Query API
-%%      Returned list does not include DTName
-rget(DomainName, TableName, Cond) ->
-    get_in(DomainName, TableName, Cond).
-
 %% @spec(rstore(DomainName::string(), TableName::string(), KVList)) ->
 %%              {ok, Rec::list()} | {error, Msg::any()}
 %%
@@ -96,6 +101,27 @@ rget(DomainName, TableName, Cond) ->
 %%
 rstore(DomainName, TableName, KVList) ->
     store_in(DomainName, TableName, KVList).
+
+%% @spec(del(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%%
+%% @doc Key::atom()|string()|integer()
+del(Key) ->
+    del_in(Key).
+
+%% @spec(cdel(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%%
+%% @doc Key::atom()|string()|integer()
+%%      simple K/V delete with cache enabled
+cdel(Key) ->
+    cdel_in(Key).
+
+%% @spec(rdel(DomainName::string(), TableName::string(), Cond::string())) ->
+%%              {ok, DeletedNum} | {error, Msg::any()}
+%%
+%% @doc Range Delete API
+%%      Returned list does not include DTName
+rdel(DomainName, TableName, Cond) ->
+    del_in(DomainName, TableName, Cond).
 
 
 %% ----------------------------------------------------------------------------
@@ -107,6 +133,16 @@ get_in(Key) ->
     SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
+
+del_in(Key) ->
+    TargetName = hm_router:lookup(Key),
+    SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
+    SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
+    del_from_succlist(SuccList, Key).
+
+store_in(Key, Value) ->
+    RouterName = hm_router:lookup(Key),
+    store_in_to(RouterName, ?hm_global_table, {Key, Value}).
 
 cget_in(Key) ->
     case hm_cache:get_cache(Key) of
@@ -123,6 +159,10 @@ cget_in(Key) ->
             {ok, {Key, Value}}
     end.
 
+cdel_in(Key) ->
+    hm_cache:del_cache(Key),
+    del_in(Key).
+
 cstore_in(Key, Value) ->
     hm_cache:store_cache(Key, Value),
     store_in(Key, Value).
@@ -133,9 +173,47 @@ get_in(DomainName, TableName, Cond) ->
     {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList),
     {ok, _Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
     {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
-    {ok, DataNodeList} = get_data_node_list(IndexDsNode, DTName, FlistIndex, MS),
+    {ok, DataNodeList} = get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, get),
     scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond).
 
+del_in(DomainName, TableName, Cond) ->
+    DTName = list_to_atom(DomainName ++ TableName),
+    NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+    {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList),
+    {ok, _Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
+    {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
+
+    %% get data node list from index table _AND_ delete index information
+    {ok, DataNodeList} = get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, delete),
+    scatter_delete(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond).
+
+store_in(DomainName, TableName, KVList) ->
+    NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+
+    {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
+    case hm_table:get_table_info(DomainName, TableName, NodeList) of
+        {ok, DTName, AttList} ->
+
+            %% Key is calcurated with DTName+values of key fields
+            {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
+
+            %% data record is stored on this node in ?hm_global_table table
+            %% at first data is stored, then index is stored
+            DataTableNode = hm_router:lookup(Key), 
+            case store_data(DTName, DataTableNode, KVList) of
+                {ok, _}      -> 
+                    store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
+                {partial, Cnt}      -> 
+                    ?warning_p("store_data failed(partial) :DTName:[~p] DataTableNode:[~p] KVList:[~p] Cnt:[~p].~n", 
+                        none, [DTName, DataTableNode, KVList, Cnt]),
+                    store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
+                {ng, Cnt} -> 
+                    ?error_p("store_data failed :DTName:[~p] DataTableNode:[~p] KVList:[~p] Cnt:[~p].~n", 
+                        none, [DTName, DataTableNode, KVList, Cnt]),
+                    {error, store_into_datatable_failed}
+            end;
+        {error, ErrInfo} -> {error, ErrInfo}
+    end.
 
 scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond) ->
     Ref = make_ref(),
@@ -172,48 +250,74 @@ get_query_spec(Cond, AttList) ->
     {ok, MS, MSData, FlistIndex, FlistData}.
 
 
-get_data_node_list(IndexDsNode, DTName, FlistIndex, MS) ->
-    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, DTName, FlistIndex, MS}),
-    DataNodeList = 
+get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, Type) when Type =:= get ->
+
+    {ok, RowList} = gen_server:call(
+                        {global, IndexDsNode}, 
+                        {select_table, DTName, FlistIndex, MS}
+                    ),
+    DataNodeList =
         sets:to_list(
             sets:from_list(
-                lists:foldl(fun (Node, AccIn) -> [hd(Node)] ++ AccIn  end, [], RowList))),
+                lists:foldl(fun (Node, AccIn) ->
+                                [hd(Node)] ++ AccIn
+                            end, [], RowList)
+                    )
+        ),
+    {ok, DataNodeList};
+get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, Type) when Type =:= delete ->
+
+    {ok, RowList} = gen_server:call(
+                        {global, IndexDsNode}, 
+                        {select_table, DTName, FlistIndex, MS}
+                    ),
+    DataNodeList =
+        sets:to_list(
+            sets:from_list(
+                lists:foldl(fun (Node, AccIn) ->
+                                [hd(Node)] ++ AccIn
+                            end, [], RowList)
+                    )
+        ),
+    {ok, _DeletedNum} = gen_server:call({global, IndexDsNode}, {select_delete_table, DTName, FlistIndex, MS}),
     {ok, DataNodeList}.
 
 
 lookup_index_table_attribute(IndexTableNode, DTNameTable) ->
     case gen_server:call({global, IndexTableNode}, {get_table_info, DTNameTable}) of
-        {ok, Tid, AttList} -> {ok, Tid, AttList};
+        {ok, TableName, AttList} -> {ok, TableName, AttList};
         {error, Msg} -> 
             {error, Msg}
     end.
 
-store_in(DomainName, TableName, KVList) ->
-    NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
+scatter_delete(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond) ->
+    Ref = make_ref(),
 
-    {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
-    case hm_table:get_table_info(DomainName, TableName, NodeList) of
-        {ok, _Tid, AttList} ->
+    % spawn a gathering process
+    LoopPid = spawn_link( ?MODULE, gather_delete, [length(DataNodeList), self(), Ref, 0]),
 
-            %% Key is calcurated with DTName+values of key fields
-            DTName = list_to_atom(DomainName++TableName),
-            {ok, Key} = calc_key_from_key_data(DTName, KVList, AttList),
-
-            %% data record is stored on this node in ?hm_global_table table
-            %% at first data is stored, then index is stored
-            DataTableNode = hm_router:lookup(Key), 
-            case store_data(DTName, DataTableNode, KVList) of
-                {ok, _}      -> 
-                    store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
-                {error, Msg} -> 
-                    ?error_p("store_data failed :DTName:[~p] DataTableNode:[~p] KVList:[~p] Msg:[~p].~n", 
-                        none, [DTName, DataTableNode, KVList, Msg]),
-                    {error, Msg}
-            end;
-        {error, ErrInfo} -> {error, ErrInfo}
+    % spawn a scattering processes for each node
+    lists:foreach(
+           fun(El) -> 
+                spawn_link(
+                    ?MODULE, 
+                    delete_data_table_solo, 
+                    [El, DTName, FlistData, MSData, LoopPid, Ref]
+                )
+           end, 
+           DataNodeList
+    ),
+    % receive total result
+    receive
+        {ok, Ref, DeletedNum} -> {ok, DeletedNum};
+        {error, Ref, Msg} -> {error, Msg} 
+    after ?TIMEOUT_GET ->
+        ?error_p("get timeout :DomainName:[~p] TabName:[~p] Cond:[~p]~n",
+                get, [DomainName, TableName, Cond]),
+        {error, timeout}
     end.
 
-gather_get(0,   Pid, Ref, ResList) -> 
+gather_get(0, Pid, Ref, ResList) -> 
     ?info_p("gather_get OK:ResList:[~p]~n", gather_get, [ResList]),
     Pid ! {ok, Ref, lists:usort(ResList)};
 gather_get(Cnt, Pid, Ref, ResList) ->
@@ -223,6 +327,20 @@ gather_get(Cnt, Pid, Ref, ResList) ->
         {error, Ref, Msg} ->
             ?error_p("gather_get Error:Msg:[~p]~n", gather_get, [Msg]),
             gather_get( Cnt - 1, Pid, Ref, ResList )
+    after ?TIMEOUT_GET ->
+        Pid ! {error, Ref, timeout}
+    end.
+
+gather_delete(0, Pid, Ref, Acc) -> 
+    ?info_p("gather_delete OK:[~p]~n", gather_delete, [Acc]),
+    Pid ! {ok, Ref, Acc};
+gather_delete(Cnt, Pid, Ref, Acc) ->
+    receive
+        {ok, Ref, DeletedNum} ->
+            gather_delete( Cnt - 1, Pid, Ref, Acc + DeletedNum );
+        {error, Ref, Msg} ->
+            ?error_p("gather_delete Error:Msg:[~p]~n", gather_delete, [Msg]),
+            gather_delete( Cnt - 1, Pid, Ref, Acc )
     after ?TIMEOUT_GET ->
         Pid ! {error, Ref, timeout}
     end.
@@ -243,7 +361,23 @@ lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) -
                 LoopPid ! {ok, Ref, lists:map(fun({_,Rec}) -> Rec end, RowList)}
     end.
 
+delete_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) ->
+    DataNodeName = name(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
 
+    case hm_misc:is_alive(DataNodeName) of
+        false -> 
+            ?warning_p("DataNode Not Alive : Node:[~p].~n", none, [DataNodeName]),
+            LoopPid ! {error, Ref, node_not_alive};
+        true ->
+            {ok, NumDeleted} = 
+                gen_server:call(
+                    {global, DataNodeName}, 
+                    {select_delete_table, ?hm_global_table, DTNameTable, FlistModified, MS}
+                ),
+                LoopPid ! {ok, Ref, NumDeleted}
+    end.
+
+%% @doc returns hm_table/hm_ds name of the server first looked alive
 lookup_index_table_node(NodeList) ->
     case hm_misc:get_first_alive_entry(NodeList) of 
         {error, none} -> {error, no_node_available};
@@ -349,11 +483,6 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
                       [], KeyList),
     {ok, list_to_atom(atom_to_list(DTName)++Key)}.
 
-store_in(Key, Value) ->
-    RouterName = hm_router:lookup(Key),
-    store_in_to(RouterName, ?hm_global_table, {Key, Value}).
-
-
 store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
@@ -406,25 +535,40 @@ get_from_succlist(Succlist, Key) ->
             end
     end.
 
+del_from_succlist([], _Key) -> ok;
+del_from_succlist(Succlist, Key) ->
+    {RouterName, _} = hd(Succlist),
+    TargetName = name(atom_to_list(RouterName) -- ?PROCESS_PREFIX),
+    case global:whereis_name(TargetName) of
+        undefined ->
+            ?warning_p("del:Key:[~p] TargetName:[~p] global name undefined .~n", delete, [Key, TargetName]);
+        _ ->
+            {ok, delete, Key} = gen_server:call({global, TargetName}, {delete, Key}),
+            ?info_p("del:Key:[~p] TargetName:[~p].~n", delete, [Key, TargetName])
+    end,
+    del_from_succlist(tl(Succlist), Key).
+
 init(RegName) ->
-    GlobalTableId = ets:new(?hm_global_table, [bag, public, named_table]),
-    {ok, {RegName, [{?hm_global_table, GlobalTableId}]}}.
+    ets:new(?hm_global_table, [bag, public, named_table]),
+    {ok, {RegName, [?hm_global_table]}}.
 
 handle_cast(stop, State) ->
     {stop, normal, State}.
 
-handle_call({register_table, {TableName, TableId}}, _From, {RegName, TableList}) ->
-    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, {TableName, TableId}]),
-    {reply, {ok, register_table, TableName}, {RegName, [{TableName, TableId}|TableList]}};
+handle_call({register_table, TableName}, _From, {RegName, TableList}) ->
+    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
+    {reply, {ok, register_table, TableName}, {RegName, [TableName|TableList]}};
 
 handle_call({unregister_table, TableName}, _From, {RegName, TableList}) ->
     ?info_p("unregister_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
-    NewTableList = lists:keydelete(TableName, 1, TableList),
+    NewTableList = TableList -- [TableName],
     {reply, {ok, unregister_table}, {RegName, NewTableList}};
 
 handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
-    ReplyData = hm_misc:search_table_attlist(DTName, TableList),
-    {reply, ReplyData, State};
+    case lists:member(DTName, TableList) of
+        true -> {reply, {ok, DTName}, State};
+        false -> {reply, {error, no_table}, State}
+    end;
 
 handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
     % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
@@ -435,12 +579,19 @@ handle_call({select_table, DTName, FlistModified, MS}, _From, State) ->
     Reply = ets:select(DTName, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, lists:usort(Reply)}, State};
 
+handle_call({select_delete_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+    NumDeleted = ets:select_delete(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
+    {reply, {ok, NumDeleted}, State};
+handle_call({select_delete_table, DTName, FlistModified, MS}, _From, State) ->
+    NumDeleted = ets:select_delete(DTName, [{{'$1', FlistModified},MS,['$$']}]),
+    {reply, {ok, NumDeleted}, State};
+
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
-    case lists:keyfind(TableName, 1, TableList) of 
+    case lists:member(TableName, TableList) of 
         false -> 
             {reply, {error, {store, no_table_found}}, {RegName, TableList}};
-        {TableName, TableId} ->
-            Ret = (catch ets:insert(TableId, {Key, Value})),
+        true ->
+            Ret = (catch ets:insert(TableName, {Key, Value})),
             case Ret of
                 true ->
                     {reply, {ok, insert}, {RegName, TableList}};
@@ -456,9 +607,9 @@ handle_call({get, Key}, _From, {RegName, TableList}) ->
     Reply = ets:lookup(?hm_global_table, Key),
     {reply, Reply, {RegName, TableList}};
 
-handle_call({get, TableId, Key}, _From, {RegName, TableList}) ->
-    Reply = ets:lookup(TableId, Key),
-    {reply, Reply, {RegName, TableList}}.
+handle_call({delete, Key}, _From, {RegName, TableList}) ->
+    ets:delete(?hm_global_table, Key),
+    {reply, {ok, delete, Key}, {RegName, TableList}}.
 
 name(Name) when is_list(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ Name);
 name(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ atom_to_list(Name)).

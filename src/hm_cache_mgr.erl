@@ -37,7 +37,7 @@ terminate(Reason, StateName, State) ->
     ok.
 
 cache_cleanup_lru(timeout, RegName) ->
-    RowCnt = ets:select_count(?ets_cache_table, ets:fun2ms(fun(_)->true end)),
+    RowCnt = ets:select_count(?hm_ets_cache_table, ets:fun2ms(fun(_)->true end)),
     case RowCnt > ?ets_cache_threshold_num of
         true -> 
             ?info_p("Current Num:[~p]\n", RegName, [RowCnt]),
@@ -58,7 +58,7 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
             end
          ),
     NextDelCnt =
-        case ets:select(?ets_cache_table, MS) of
+        case ets:select(?hm_ets_cache_table, MS) of
             [] ->
                 %% second condition: reference count == count or expired
                 MS2 = ets:fun2ms(
@@ -66,7 +66,7 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
                             K
                         end
                       ),
-                case ets:select(?ets_cache_table, MS2) of
+                case ets:select(?hm_ets_cache_table, MS2) of
                     %% check with next reference count(count+1)
                     [] -> ToDelCnt;
                     RecMatch2 -> 
@@ -76,7 +76,7 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
             %% delete ToDelCnt records from these records 
             RecMatch -> del_until_threshold(RecMatch, ToDelCnt)
         end,
-    RowCnt = ets:select_count(?ets_cache_table, ets:fun2ms(fun(_)->true end)),
+    RowCnt = ets:select_count(?hm_ets_cache_table, ets:fun2ms(fun(_)->true end)),
     ?info_p("New Row Num:[~p]\n", none, [RowCnt]),
     case NextDelCnt > 0 of
         true -> 
@@ -89,7 +89,7 @@ clean_up_worker_in(CurCnt, CurTimesec, ToDelCnt) ->
 del_until_threshold([], ToDelCnt) -> ToDelCnt;
 del_until_threshold(_Any, 0) -> 0;
 del_until_threshold([Key|RecList], ToDelCnt) ->
-    ets:delete(?ets_cache_table, Key),
+    ets:delete(?hm_ets_cache_table, Key),
     del_until_threshold(RecList, ToDelCnt - 1).
 
 init(RegName) -> 

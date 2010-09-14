@@ -74,9 +74,9 @@ create_table_in([{NodeName,_NodeVector}=CurNode|Tail],
     TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
     case hm_misc:is_alive(TargetName) of 
         true ->
-            {ok, {DTName, Tid}} =  gen_server:call({global, TargetName}, {create_table, DomainName, TableName, AttList}),
+            {ok, DTName} =  gen_server:call({global, TargetName}, {create_table, DomainName, TableName, AttList}),
             TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
-            case gen_server:call({global, TargetName_ds}, {register_table, {DTName, Tid}}) of
+            case gen_server:call({global, TargetName_ds}, {register_table, DTName}) of
                 {ok, register_table, DTName} ->
                     create_table_in(Tail, FailedList, DomainName, TableName, AttList);
                 _Any ->
@@ -98,18 +98,21 @@ drop_table(DomainName, TableName) ->
 
 drop_table_in([], FailedList, _DomainName, _TableName) ->
     {ok, FailedList};
-drop_table_in([{NodeName,_NodeVector}=CurNode|Tail], 
+drop_table_in([{NodeName,_NodeVector}=CurNode|Tail],
                   FailedList, DomainName, TableName) ->
     TargetName = name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
     case hm_misc:is_alive(TargetName) of 
         true ->
-            {ok, delete_table, DTName} =  gen_server:call({global, TargetName}, {drop_table, DomainName, TableName}),
-            TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
-            case gen_server:call({global, TargetName_ds}, {unregister_table, DTName}) of
-                {ok, unregister_table} ->
-                    drop_table_in(Tail, FailedList, DomainName, TableName);
-                _Any -> 
-                    drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
+            case gen_server:call({global, TargetName}, {drop_table, DomainName, TableName}) of
+                {ok, delete_table, DTName} -> 
+                    TargetName_ds = hm_ds:name(list_to_atom( atom_to_list(NodeName) -- ?PROCESS_PREFIX )),
+                    case gen_server:call({global, TargetName_ds}, {unregister_table, DTName}) of
+                        {ok, unregister_table} ->
+                            drop_table_in(Tail, FailedList, DomainName, TableName);
+                        _Any -> 
+                            drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
+                    end;
+                _ -> drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
             end;
         false ->
             drop_table_in(Tail, [CurNode|FailedList], DomainName, TableName)
@@ -130,14 +133,25 @@ handle_call({get_table_info, DTName}, _From, {_RegName, TblList}=State) ->
 %% @doc index table is 
 handle_call({create_table, DomainName, TableName, AttList}, _From, {RegName, TblList}) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    TableId = ets:new(DTName, [bag, named_table, public]),
-    {reply, {ok, {DTName, TableId}}, {RegName, [{TableId, DTName, AttList}|TblList]}};
+    case ets:info(DTName) of
+        undefined -> 
+            DTName = ets:new(DTName, [bag, named_table, public]),
+            {reply, {ok, DTName}, {RegName, [{DTName, AttList}|TblList]}};
+        _ ->
+            
+            {reply, {error, already_exists}, {RegName, TblList}}
+    end;
 
 handle_call({drop_table, DomainName, TableName}, _From, {RegName, TblList}) ->
     DTName=list_to_atom(DomainName ++ TableName),
-    ets:delete(DTName),
-    NewState = lists:keydelete(DTName, 2, TblList),
-    {reply, {ok, delete_table, DTName}, {RegName, NewState}}.
+    case ets:info(DTName) of
+        undefined -> 
+            {reply, {error, not_exists}, {RegName, TblList}};
+        _ ->
+            ets:delete(DTName),
+            NewState = lists:keydelete(DTName, 1, TblList),
+            {reply, {ok, delete_table, DTName}, {RegName, NewState}}
+    end.
 
 
 name(Name) when is_list(Name) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ Name);

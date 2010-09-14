@@ -40,7 +40,7 @@
 -define(PROCESS_PREFIX, "hm_router_").
 
 % cache
--define(ets_cache_table, ets_cache_table).
+-define(hm_ets_cache_table, hm_ets_cache_table).
 -define(cache_timeout, (60*60)).  % default 1 hour later
 -define(cache_limit_size, 10000). % default 10000 recs
 -define(cache_cleanup_interval, (60 * 5 * 1000)). % 5minutes
