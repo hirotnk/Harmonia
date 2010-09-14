@@ -1,18 +1,16 @@
 TODO:
 
- write out the test modules
  add data migration process: harmonia_data_migrate.erl
  read me update
- client API 
 1. make the load of harmonoa.erl module as light as possible
 5. add data store method switch mechanism(ets/dets/mnesia...)
-6. index of ets
 7. interface of memcached
 
 TODO:2010-9-13
-table -> table name, and crash deal
-remove API
-
+OK: table -> table name, and crash deal
+OK: remove API
+OK: write out the test modules
+OK: client API 
 
 TODO:2010-9-12
 OK: need to check input of query condition(API is baaaaad..)
