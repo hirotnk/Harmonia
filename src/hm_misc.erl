@@ -224,7 +224,7 @@ get_digest(Key) when is_list(Key) ->
     Vector rem ?max_key_value.
 
 search_table_attlist(DTName, TblList) ->
-    case lists:keyfind(DTName, 1, TblList) of
+    case lists:keysearch(DTName, 1, TblList) of
         false -> {error, no_table};
-        {DTName, AttList} -> {ok, DTName, AttList}
+        {value, {DTName, AttList}} -> {ok, DTName, AttList}
     end.

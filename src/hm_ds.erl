@@ -448,7 +448,7 @@ extract_kv_tuples(KVList, AttList, KVFlag) ->
     StoreDataList = 
         lists:filter(
             fun({Fname,_}) -> 
-                case lists:keyfind(Fname, 1, DataFields) of 
+                case lists:keysearch(Fname, 1, DataFields) of 
                     false -> false;
                     _ -> true
                 end
