@@ -146,12 +146,14 @@ log_stop() ->
 %% ----------------------------------------------------------------------------
 log_start_in([]) -> ok;
 log_start_in([{_Name, NodeName}|NodeList]) ->
-    rpc:call(NodeName, hm_event_mgr, add_file_handler, []),
+    Res = rpc:call(NodeName, hm_event_mgr, add_file_handler, []),
+    io:format("log start:[~p] Result:[~p]\n", [NodeName, Res]),
     log_start_in(NodeList).
 
 log_stop_in([]) -> ok;
 log_stop_in([{_Name, NodeName}|NameList]) ->
-    rpc:call(NodeName, hm_event_mgr, delete_file_handler, []),
+    Res = rpc:call(NodeName, hm_event_mgr, delete_file_handler, []),
+    io:format("log stop:[~p] Result:[~p]\n", [NodeName, Res]),
     log_stop_in(NameList).
 
 %% ----------------------------------------------------------------------------
