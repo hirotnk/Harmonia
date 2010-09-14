@@ -203,7 +203,10 @@ is_pred_nil(State) ->
     end.
 
 make_request_list(TargetName, SuccListTarget) ->
-    [{TargetName, instance} | SuccListTarget ]. % this order is important, don't sort !!
+    % this order is important, don't sort !!
+    % also, if elements of list duplicate, system ends up with trying same
+    % operation multiple times, so this list must have uniq elements
+    del_dup([{TargetName, instance} | SuccListTarget ]).
 
 make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name
@@ -228,3 +231,17 @@ search_table_attlist(DTName, TblList) ->
         false -> {error, no_table};
         {value, {DTName, AttList}} -> {ok, DTName, AttList}
     end.
+
+del_dup(List) ->
+    lists:reverse(del_dup_in(List)).
+
+del_dup_in(Old) ->
+    lists:foldl(
+        fun({Node,Vec}, Acc) -> 
+            case lists:keysearch(Node, 1, Acc) of
+                false      -> [{Node,Vec}|Acc];
+                {value, _} -> Acc
+            end
+        end, [], Old
+    ).
+
