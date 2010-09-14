@@ -6,6 +6,9 @@ TODO:
 5. add data store method switch mechanism(ets/dets/mnesia...)
 7. interface of memcached
 
+TODO:2010-9-14
+log_start/stop bug fix
+
 TODO:2010-9-13
 OK: table -> table name, and crash deal
 OK: remove API
