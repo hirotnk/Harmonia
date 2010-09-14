@@ -487,6 +487,7 @@ store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
+    ?info_p("store_to_succlist:SuccList:[~p] Key:[~p] Value:[~p].~n", store, [SuccList, Key, Value]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
 
 % the successor list here includes target node itself, and
@@ -512,7 +513,7 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
             case Reply of
                 {ok, _} -> NewCnt = Cnt + 1;
                 {error, Msg} ->
-                    ?error_p("store_to_succlist:~p undefined ~nKey:[~p] TargetName:[~p].~n",
+                    ?error_p("store_to_succlist: Msg:[~p] Key:[~p] TargetName:[~p].~n",
                         store, [Msg, Key, TargetName]),
                     NewCnt = Cnt
             end
@@ -587,6 +588,7 @@ handle_call({select_delete_table, DTName, FlistModified, MS}, _From, State) ->
     {reply, {ok, NumDeleted}, State};
 
 handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
+    ?info_p("store:TableName:[~p] Key:[~p] Value:[~p] TableList:[~p].~n", store, [TableName, Key, Value, TableList]),
     case lists:member(TableName, TableList) of 
         false -> 
             {reply, {error, {store, no_table_found}}, {RegName, TableList}};

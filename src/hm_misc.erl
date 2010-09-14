@@ -203,7 +203,7 @@ is_pred_nil(State) ->
     end.
 
 make_request_list(TargetName, SuccListTarget) ->
-    lists:usort([{TargetName, instance} | SuccListTarget ]).
+    [{TargetName, instance} | SuccListTarget ]. % this order is important, don't sort !!
 
 make_request_list_from_dt(DomainName, TableName) ->
     % get atom() of node name

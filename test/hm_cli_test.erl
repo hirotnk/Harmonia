@@ -135,10 +135,10 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{partial, 4}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{partial, 4}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{partial, 4}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{partial, 4}).
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{ok, 5}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{ok, 5}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{ok, 5}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{ok, 5}).
 
 rangeq_test1() -> 
     io:format("rangeq_test1 start~n"),

@@ -80,9 +80,12 @@ create_table_in([{NodeName,_NodeVector}=CurNode|Tail],
                 {ok, register_table, DTName} ->
                     create_table_in(Tail, FailedList, DomainName, TableName, AttList);
                 _Any ->
+                    ?warning_p("register_table fail : TargetName_ds:[~p] DTName:[~p].~n", none, 
+                        [TargetName_ds, DTName]),
                     create_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
             end;
         false ->
+            ?warning_p("Target Not Alive : Node:[~p].~n", none, [TargetName]),
             create_table_in(Tail, [CurNode|FailedList], DomainName, TableName, AttList)
     end.
 
