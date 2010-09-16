@@ -319,6 +319,8 @@ scatter_delete(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, C
 
 gather_get(0, Pid, Ref, ResList) -> 
     ?info_p("gather_get OK:ResList:[~p]~n", gather_get, [ResList]),
+    DataList = lists:usort(ResList),
+    log_get_data(DataList),
     Pid ! {ok, Ref, lists:usort(ResList)};
 gather_get(Cnt, Pid, Ref, ResList) ->
     receive
@@ -472,22 +474,23 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
     % the value of the key fields must be list/string()/atom
     Key = lists:foldl(fun
                         ({_, Data},AccIn) when is_list(Data) -> 
-                                AccIn ++ Data;
+                                Data ++ AccIn;
 
                         ({_, Data},AccIn) when is_atom(Data) -> 
-                                AccIn ++ atom_to_list(Data);
+                                atom_to_list(Data) ++ AccIn;
 
                         ({_, Data},AccIn) when is_integer(Data) -> 
-                                AccIn ++ integer_to_list(Data)
+                                integer_to_list(Data) ++ AccIn
                       end, 
                       [], KeyList),
-    {ok, list_to_atom(atom_to_list(DTName)++Key)}.
+    {ok, list_to_atom(atom_to_list(DTName) ++ Key)}.
 
 store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
-    ?info_p("store_to_succlist:SuccList:[~p] Key:[~p] Value:[~p].~n", store, [SuccList, Key, Value]),
+    ?info_p("store_to_succlist:SuccList:[~p].~n", store, [SuccList]),
+    ?info_p("DATA-STORE>>>>> Key:[~p] Value:[~p].~n", store, [Key, Value]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
 
 % the successor list here includes target node itself, and
@@ -548,6 +551,11 @@ del_from_succlist(Succlist, Key) ->
             ?info_p("del:Key:[~p] TargetName:[~p].~n", delete, [Key, TargetName])
     end,
     del_from_succlist(tl(Succlist), Key).
+
+log_get_data([]) -> ok;
+log_get_data(DataList) ->
+    ?info_p("DATA-GET  >>>>> Value:[~p].~n", store, [hd(DataList)]),
+    log_get_data(tl(DataList)).
 
 init(RegName) ->
     ets:new(?hm_global_table, [bag, public, named_table]),
