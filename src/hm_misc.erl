@@ -162,19 +162,6 @@ replace_nth_in(C, N, Len, Val, Old, New) ->
     end.
    
 
-
-diff(L1,L2) -> diff_in(L1,L2,[]).
-diff_in([],[],L3) -> L3;
-diff_in([],[H2|L2],L3) -> 
-    diff_in([],L2,L3++[H2]);
-diff_in([H1|L1],[],L3) ->
-    diff_in(L1,[],L3++[H1]);
-diff_in([H1|L1],[H2|L2],L3) ->
-    case (H1 =/= H2) of
-        true -> diff_in(L1, L2, L3++[H1]);
-        false -> diff_in(L1, L2, L3)
-    end.
-
 check_pred_and_successor(State) ->
     Name = State#state.node_name,
 
