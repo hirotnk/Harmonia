@@ -34,6 +34,8 @@
         ]).
 -define(microsec, (1000*1000)).
 -include_lib("eunit/include/eunit.hrl").
+-include("harmonia.hrl").
+
 
 
 test_all() ->
@@ -147,10 +149,11 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{ok, 5}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{ok, 5}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{ok, 5}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{ok, 5}).
+    
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])  ,{ok, ?succ_list_len + 1}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{ok, ?succ_list_len + 1}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{ok, ?succ_list_len + 1}),
+    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{ok, ?succ_list_len + 1}).
 
 rangeq_test1() -> 
     io:format("rangeq_test1 start~n"),
