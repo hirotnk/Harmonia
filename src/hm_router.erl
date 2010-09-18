@@ -16,6 +16,7 @@
 
 -export([
         lookup/1, 
+        lookup_with_succlist/1,
         name/1,
         start/1, 
         start_link/1,
@@ -55,11 +56,20 @@ lookup(Key) ->
     KeyVector = hm_misc:get_digest(Key),
     {ok, RegName} = hm_misc:get_rand_procname(),
     {SuccName, _} = gen_server:call(
-                        {global, name(RegName)}, 
-                        {find_successor,
-                        KeyVector, nil}
+                        {global, RegName}, 
+                        {find_successor, KeyVector, nil}
                     ),
     SuccName.
+
+lookup_with_succlist(Key) ->
+    KeyVector = hm_misc:get_digest(Key),
+    {ok, RegName} = hm_misc:get_rand_procname(),
+    {{SuccName, _}, SuccList} = 
+                    gen_server:call(
+                        {global, RegName}, 
+                        {find_successor_with_succlist, KeyVector, nil}
+                    ),
+    {ok, SuccName, SuccList}.
 
 state_info(RegName) ->
     gen_server:call({global, name(RegName)}, state_info).
@@ -86,7 +96,7 @@ init({Op, RegName}) ->
 
 handle_cast(stop, State) -> {stop, normal, State};
 
-handle_cast({find_successor_ask_other, NodeVector, From}, State) ->
+handle_cast({find_successor_ask_other, Key, NodeVector, From}, State) ->
     RetVal = find_successor_in(NodeVector, State),
 
     ?info_p("find_successor_ask_other: RetVal:[~p] NodeVector:[~p] From:[~p] ~n", 
@@ -94,10 +104,13 @@ handle_cast({find_successor_ask_other, NodeVector, From}, State) ->
     case RetVal of
         {found, NewSucc} ->
             % reply to originator
-            gen_server:reply(From, NewSucc);
+            case Key =:= find_successor_with_succlist of
+                true -> gen_server:reply(From, {NewSucc, State#state.succlist});
+                false -> gen_server:reply(From, NewSucc)
+            end;
         {not_found, {InqNode, _InqVector}} ->
             % forward message
-            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From})
+            gen_server:cast({global, InqNode}, {find_successor_ask_other, Key, NodeVector, From})
     end,
     {noreply, State};
 
@@ -204,11 +217,15 @@ find_successor_handle_call_in(Handlecall_Key, NodeVector, CurrentFix, From, Stat
     case NodeVector =:= State#state.node_vector of 
         % when node vector == current node, return current node
         true ->
-            {reply, {State#state.node_name, State#state.node_vector}, NewState};
+            case Handlecall_Key =:= find_successor_with_succlist of
+                false -> {reply, {State#state.node_name, State#state.node_vector}, NewState};
+                true -> {reply, {{State#state.node_name, State#state.node_vector}, State#state.succlist}, NewState}
+            end;
+
         false ->
             RetVal = find_successor_in(NodeVector, State),
-            ?info_p("~p: RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
-                    State#state.node_name, [Handlecall_Key, RetVal, NodeVector, CurrentFix, From]),
+            ?info_p("RetVal:[~p] NodeVector:[~p]. CurrentFix:[~p] From:[~p] ~n", 
+                    State#state.node_name, [RetVal, NodeVector, CurrentFix, From]),
             return_successor_info(Handlecall_Key, RetVal, NodeVector, From, NewState)
     end.
 
@@ -261,7 +278,7 @@ return_successor_info(Key, RetVal, NodeVector, From, NewState) ->
             return_successor_info_in(Key, NewSucc, NewState);
         {not_found, {InqNode, _InqVector}} ->
             % ask to InqNode about NodeVector
-            gen_server:cast({global, InqNode}, {find_successor_ask_other, NodeVector, From}),
+            gen_server:cast({global, InqNode}, {find_successor_ask_other, Key, NodeVector, From}),
             {noreply, NewState}
     end.
 

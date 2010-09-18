@@ -102,13 +102,25 @@ is_between2(From, Target, To) when From  >  To ->
     end.
 
 get_rand_procname() ->
-    {ok, ProcList} = gen_server:call({global, ?name_server}, get_name_list),
-    {Name, _NodeName} = 
-    case length(ProcList) of 
-        0 -> {error, instance};
-        N -> lists:nth(random:uniform(N), ProcList)
-    end,
+    %% For now, to get the name of the router, we use the Erlang distributed environment mechanism
+
+    %% {ok, ProcList} = gen_server:call({global, ?name_server}, get_name_list),
+    %% {Name, _NodeName} = 
+    %% case length(ProcList) of 
+    %%     0 -> {error, instance};
+    %%     N -> lists:nth(random:uniform(N), ProcList)
+    %% end,
+    NameList = global:registered_names(),
+    {ok, Name} = get_first_fit_router(NameList), % clash, if error.
     {ok, Name}.
+
+get_first_fit_router([]) -> error;
+get_first_fit_router([Candidate|NameList]) ->
+    case lists:prefix("hm_router_", atom_to_list(Candidate)) of
+        true -> {ok, Candidate};
+        false ->
+            get_first_fit_router(NameList)
+    end.
 
 get_first_alive_entry([]) -> {error, none};
 get_first_alive_entry([{Name, _Vector} = FirstNode|NodeList]) ->
@@ -196,10 +208,7 @@ make_request_list(TargetName, SuccListTarget) ->
     del_dup([{TargetName, instance} | SuccListTarget ]).
 
 make_request_list_from_dt(DomainName, TableName) ->
-    % get atom() of node name
-    %% TODO: this two line should use find_successor_with_succlist ? for performance
-    NodeName = hm_router:lookup(list_to_atom(DomainName ++ TableName)),
-    SuccList = gen_server:call({global, NodeName}, copy_succlist),
+    {ok, NodeName, SuccList} = hm_router:lookup_with_succlist(list_to_atom(DomainName ++ TableName)),
     make_request_list(NodeName, SuccList).
 
 

@@ -129,20 +129,18 @@ rdel(DomainName, TableName, Cond) ->
 %% ----------------------------------------------------------------------------
 
 get_in(Key) ->
-    TargetName = hm_router:lookup(Key),
-    SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
+    {ok, TargetName, SuccListTarget} = hm_router:lookup_with_succlist(Key),
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     get_from_succlist(SuccList, Key).
 
 del_in(Key) ->
-    TargetName = hm_router:lookup(Key),
-    SuccListTarget = gen_server:call({global, TargetName}, copy_succlist),
+    {ok, TargetName, SuccListTarget} = hm_router:lookup_with_succlist(Key),
     SuccList = hm_misc:make_request_list(TargetName, SuccListTarget),
     del_from_succlist(SuccList, Key).
 
 store_in(Key, Value) ->
-    RouterName = hm_router:lookup(Key),
-    store_in_to(RouterName, ?hm_global_table, {Key, Value}).
+    {ok, RouterName, SuccList} = hm_router:lookup_with_succlist(Key),
+    store_in_to_new(RouterName, SuccList, ?hm_global_table, {Key, Value}).
 
 cget_in(Key) ->
     case hm_cache:get_cache(Key) of
@@ -199,8 +197,8 @@ store_in(DomainName, TableName, KVList) ->
 
             %% data record is stored on this node in ?hm_global_table table
             %% at first data is stored, then index is stored
-            DataTableNode = hm_router:lookup(Key), 
-            case store_data(DTName, DataTableNode, KVList) of
+            {ok, DataTableNode, SuccList} = hm_router:lookup_with_succlist(Key), 
+            case store_data(DTName, DataTableNode, SuccList, KVList) of
                 {ok, _}      -> 
                     store_index(DTName, DataTableNode, IndexTableNode, KVList, AttList);
                 {partial, Cnt}      -> 
@@ -410,9 +408,9 @@ fun_for_data(_T,{N,Flist}) ->
 %% Key : calculate from key fields' data
 %% Target Nodes: calculate from Key
 %%
-store_data(DTName, DataTableNode, KVList) ->
+store_data(DTName, DataTableNode, SuccList, KVList) ->
     VList = lists:map(fun({_Fld,Val}) -> Val end, KVList),
-    store_in_to(DataTableNode, ?hm_global_table, {DTName, VList}).
+    store_in_to_new(DataTableNode, SuccList, ?hm_global_table, {DTName, VList}).
 %%
 %% @spec store_index(DTName::atom(), DataTableNode::atom(), 
 %%                   IndexTableNode::atom(), KVList::list(), AttList::list()) ->
@@ -488,6 +486,14 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
 store_in_to(RouterName, TableName, {Key, Value}) ->
     % store to all successor list nodes
     SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
+    SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
+
+    ?info_p("store_to_succlist:SuccList:[~p].~n", store, [SuccList]),
+    ?info_p("DATA-STORE>>>>> Key:[~p] Value:[~p].~n", store, [Key, Value]),
+    store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
+
+store_in_to_new(RouterName, SuccListTemp, TableName, {Key, Value}) ->
+    % store to all successor list nodes
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
     ?info_p("store_to_succlist:SuccList:[~p].~n", store, [SuccList]),
     ?info_p("DATA-STORE>>>>> Key:[~p] Value:[~p].~n", store, [Key, Value]),
