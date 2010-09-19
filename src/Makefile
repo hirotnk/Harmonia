@@ -8,7 +8,9 @@
 #Compiles the code into a ebin dir. relative to the source dir. 
 EBIN = ../ebin
 EDBG = -Ddebug
-CFLG = -W +warn_unused_vars +warn_unused_import +debug_info 
+NOLOG = -Dnolog
+CFLG = -W +warn_unused_vars +warn_unused_import +debug_info +native +"{hipe, [o3]}"
+ 
 ERL = erl
 PA = /usr/local/lib/erlang/lib/eunit-2.1.5/ebin
 GEN = beam
@@ -45,6 +47,9 @@ all: $(TARGETS)
 
 debug: $(TARGETS)
 	/usr/bin/erlc -pa $(PA) $(EDBG) $(CFLG) -v -b beam -o $(EBIN) $(EFLAGS) $<
+
+nolog: $(TARGETS)
+	/usr/bin/erlc -pa $(PA) $(NOLOG) $(EDBG) $(CFLG) -v -b beam -o $(EBIN) $(EFLAGS) $<
 
    
 clean:

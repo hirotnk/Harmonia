@@ -31,10 +31,16 @@
 -define(LOG_WARNING, warning).
 -define(LOG_ERROR, error).
 
+-ifdef(nolog).
+-define(info_p    (Fmt, RegName, Data), ok).
+-define(warning_p (Fmt, RegName, Data), ok).
+-define(error_p   (Fmt, RegName, Data), ok).
+-else.
 -define(log_parts (RegName, Data), ([node(), self(), ?MODULE, ?LINE, RegName] ++ Data)).
 -define(info_p    (Fmt, RegName, Data), hm_event_mgr:log(?LOG_INFO,    Fmt, ?log_parts(RegName, Data))).
 -define(warning_p (Fmt, RegName, Data), hm_event_mgr:log(?LOG_WARNING, Fmt, ?log_parts(RegName, Data))).
 -define(error_p   (Fmt, RegName, Data), hm_event_mgr:log(?LOG_ERROR,   Fmt, ?log_parts(RegName, Data))).
+-endif.
 
 % process prefix
 -define(PROCESS_PREFIX, "hm_router_").
