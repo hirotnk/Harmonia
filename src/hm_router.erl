@@ -96,18 +96,36 @@ init({Op, RegName}) ->
 
 handle_cast(stop, State) -> {stop, normal, State};
 
+handle_cast({return_with_succlist, From}, State) ->
+    gen_server:reply(From, {{State#state.node_name, State#state.node_vector}, State#state.succlist}),
+    {noreply, State};
+
 handle_cast({find_successor_ask_other, Key, NodeVector, From}, State) ->
     RetVal = find_successor_in(NodeVector, State),
 
     ?info_p("find_successor_ask_other: RetVal:[~p] NodeVector:[~p] From:[~p] ~n", 
             State#state.node_name, [RetVal, NodeVector, From]),
     case RetVal of
-        {found, NewSucc} ->
+        %% returning my information
+        {found_me, NewSucc} ->
             % reply to originator
             case Key =:= find_successor_with_succlist of
                 true -> gen_server:reply(From, {NewSucc, State#state.succlist});
                 false -> gen_server:reply(From, NewSucc)
             end;
+
+        %% it's my successor, if you only need a name, I'm giving it to you now,
+        %%                    if you also need successor list of it, I'll forward it.
+        {found_other, NewSucc} ->
+            case Key =:= find_successor_with_succlist of
+                true -> 
+                    {InqNode,_} = NewSucc,
+                    gen_server:cast({global, InqNode}, {return_with_succlist, From});
+                false -> 
+                    gen_server:reply(From, NewSucc)
+            end;
+
+        %% not found here, forward it to other...
         {not_found, {InqNode, _InqVector}} ->
             % forward message
             gen_server:cast({global, InqNode}, {find_successor_ask_other, Key, NodeVector, From})
@@ -218,8 +236,8 @@ find_successor_handle_call_in(Handlecall_Key, NodeVector, CurrentFix, From, Stat
         % when node vector == current node, return current node
         true ->
             case Handlecall_Key =:= find_successor_with_succlist of
-                false -> {reply, {State#state.node_name, State#state.node_vector}, NewState};
-                true -> {reply, {{State#state.node_name, State#state.node_vector}, State#state.succlist}, NewState}
+                true -> {reply, {{State#state.node_name, State#state.node_vector}, State#state.succlist}, NewState};
+                false -> {reply, {State#state.node_name, State#state.node_vector}, NewState}
             end;
 
         false ->
@@ -229,24 +247,28 @@ find_successor_handle_call_in(Handlecall_Key, NodeVector, CurrentFix, From, Stat
             return_successor_info(Handlecall_Key, RetVal, NodeVector, From, NewState)
     end.
 
+%% @spec(find_successor_in(NodeVector, State) -> {found, {Succ, SuccVector}} |
+%%                                               {found, TargetNode} |
+%%                                               {not_found, Node}.
 find_successor_in(NodeVector, State) ->
     {Succ, SuccVector} = hd(State#state.finger),
     case hm_misc:is_between2(State#state.node_vector, 
                              NodeVector,
                              SuccVector) of
-        % the successor of NodeVector is this node
+        % my successor is in charge of the node vector
         true  -> 
             ?info_p("find_successor_in: Succ:[~p].~n", State#state.node_name, [Succ]),
-            {found, {Succ, SuccVector}};
+            {found_other, {Succ, SuccVector}};
 
         % my successor is not the successor of NodeVector,
         % search in the finger list later the successor
         false -> 
             case ask_closest_predecessor(State, NodeVector) of
+                % I'm successor of NodeVector
                 {exists_in_local, TargetNode} -> 
-                    % I'm successor of NodeVector
                     ?info_p("find_successor_in: TargetNode:[~p].~n", State#state.node_name, [TargetNode]),
-                    {found, TargetNode};
+                    {found_me, TargetNode};
+                % I don't see a candidate...
                 {not_exists_in_local, InqNode} -> 
                     ?info_p("find_successor_in: InqNode:[~p].~n", State#state.node_name, [InqNode]),
                     {not_found, InqNode}
@@ -271,18 +293,26 @@ ask_closest_predecessor(State, NodeVector) ->
     end,
     NewSucc.
 
-
-return_successor_info(Key, RetVal, NodeVector, From, NewState) ->
+return_successor_info(find_successor_with_succlist, RetVal, NodeVector, From, State) ->
+    MyNode = {State#state.node_name, State#state.node_vector},
     case RetVal of
-        {found, NewSucc} -> 
-            return_successor_info_in(Key, NewSucc, NewState);
+        {found_me, MyNode} -> 
+            {reply, {MyNode, State#state.succlist}, State};
+        {_, {InqNode, _InqVector}} ->
+            % ask to InqNode about NodeVector
+            gen_server:cast({global, InqNode}, 
+                            {find_successor_ask_other, 
+                             find_successor_with_succlist, NodeVector, From}),
+            {noreply, State}
+    end;
+return_successor_info(find_successor, RetVal, NodeVector, From, State) ->
+    case RetVal of
         {not_found, {InqNode, _InqVector}} ->
             % ask to InqNode about NodeVector
-            gen_server:cast({global, InqNode}, {find_successor_ask_other, Key, NodeVector, From}),
-            {noreply, NewState}
+            gen_server:cast({global, InqNode}, 
+                            {find_successor_ask_other, 
+                             find_successor, NodeVector, From}),
+            {noreply, State};
+        {_, NewSucc} -> 
+            {reply, NewSucc, State}
     end.
-
-return_successor_info_in(find_successor, NewSucc, NewState) ->
-    {reply, NewSucc, NewState};
-return_successor_info_in(find_successor_with_succlist, NewSucc, NewState) ->
-    {reply, {NewSucc, NewState#state.succlist}, NewState}.
