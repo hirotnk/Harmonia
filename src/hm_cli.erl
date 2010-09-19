@@ -153,7 +153,12 @@ log_start_in([{_Name, NodeName}|NodeList]) ->
 log_stop_in([]) -> ok;
 log_stop_in([{_Name, NodeName}|NameList]) ->
     Res = rpc:call(NodeName, hm_event_mgr, delete_file_handler, []),
-    io:format("log stop:[~p] Result:[~p]\n", [NodeName, Res]),
+    case Res of 
+       {error,module_not_found} ->
+            io:format("log stop:[~p] : The file handler is not installed.\n", [NodeName]);
+        _ ->
+            io:format("log stop:[~p] Result:[~p]\n", [NodeName, Res])
+    end,
     log_stop_in(NameList).
 
 %% ----------------------------------------------------------------------------
