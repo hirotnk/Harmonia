@@ -142,7 +142,7 @@ del_in(Key) ->
 
 store_in(Key, Value) ->
     {ok, RouterName, SuccList} = hm_router:lookup_with_succlist(Key),
-    store_in_to_new(RouterName, SuccList, ?hm_global_table, {Key, Value}).
+    store_in_to(RouterName, SuccList, ?hm_global_table, {Key, Value}).
 
 cget_in(Key) ->
     case hm_cache:get_cache(Key) of
@@ -265,13 +265,8 @@ get_query_spec(Cond, AttList) ->
     {_, FlistData}  = lists:foldl(fun ?MODULE:fun_for_data/2, {1,[]}, AttList),
     {ok, MS, MSData, FlistIndex, FlistData}.
 
-
 get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, Type) when Type =:= get ->
-
-    {ok, RowList} = gen_server:call(
-                        {global, IndexDsNode}, 
-                        {select_table, DTName, FlistIndex, MS}
-                    ),
+    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, DTName, FlistIndex, MS}),
     DataNodeList =
         lists:usort(
             lists:foldl(fun (Node, AccIn) ->
@@ -280,24 +275,18 @@ get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, Type) when Type =:= get 
         ),
     {ok, DataNodeList};
 get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, Type) when Type =:= delete ->
-
-    {ok, RowList} = gen_server:call(
-                        {global, IndexDsNode}, 
-                        {select_table, DTName, FlistIndex, MS}
-                    ),
+    {ok, RowList} = gen_server:call({global, IndexDsNode}, {select_table, DTName, FlistIndex, MS}),
     DataNodeList =
-        sets:to_list(
-            sets:from_list(
-                lists:foldl(fun (Node, AccIn) ->
-                                [hd(Node) | AccIn]
-                            end, [], RowList)
-                    )
+        lists:usort(
+            lists:foldl(fun (Node, AccIn) ->
+                            [hd(Node) | AccIn]
+                        end, [], RowList)
         ),
     {ok, _DeletedNum} = gen_server:call({global, IndexDsNode}, {select_delete_table, DTName, FlistIndex, MS}),
     {ok, DataNodeList}.
 
-
 lookup_index_table_attribute(IndexTableNode, DTNameTable) ->
+    %% TODO: don't call gen_server:call of other module directly
     case gen_server:call({global, IndexTableNode}, {get_table_info, DTNameTable}) of
         {ok, TableName, AttList} -> {ok, TableName, AttList};
         {error, Msg} -> 
@@ -426,7 +415,7 @@ fun_for_data(_T,{N,Flist}) ->
 %%
 store_data(DTName, DataTableNode, SuccList, KVList) ->
     VList = lists:map(fun({_Fld,Val}) -> Val end, KVList),
-    store_in_to_new(DataTableNode, SuccList, ?hm_global_table, {DTName, VList}).
+    store_in_to(DataTableNode, SuccList, ?hm_global_table, {DTName, VList}).
 %%
 %% @spec store_index(DTName::atom(), DataTableNode::atom(), 
 %%                   IndexTableNode::atom(), KVList::list(), AttList::list()) ->
@@ -446,7 +435,7 @@ store_index(DTNameTable, SuccList, DataTableNode, IndexTableNode, KVList, AttLis
             fun({_Fname,Value}, AccIn) ->
                     AccIn ++ [Value]
             end, [], Row),
-    store_in_to_new(IndexTableNode, SuccList, DTNameTable, {DataTableNode, Vlist}).
+    store_in_to(IndexTableNode, SuccList, DTNameTable, {DataTableNode, Vlist}).
 
 %% retrieve tuples of fields with data
 %% KVFlag: true -> returns key-tuples list
@@ -499,19 +488,10 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
                       [], KeyList),
     {ok, list_to_atom(atom_to_list(DTName) ++ Key)}.
 
-store_in_to(RouterName, TableName, {Key, Value}) ->
+store_in_to(RouterName, SuccListTemp, TableName, {Key, Value}) ->
     % store to all successor list nodes
-    SuccListTemp = gen_server:call({global, RouterName}, copy_succlist),
     SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
-
-    ?info_p("store_to_succlist:SuccList:[~p].~n", store, [SuccList]),
-    ?info_p("DATA-STORE>>>>> Key:[~p] Value:[~p].~n", store, [Key, Value]),
-    store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
-
-store_in_to_new(RouterName, SuccListTemp, TableName, {Key, Value}) ->
-    % store to all successor list nodes
     ?info_p("store_to_succlist:SuccListTemp:[~p].~n", store, [SuccListTemp]),
-    SuccList = hm_misc:make_request_list(RouterName, SuccListTemp),
     ?info_p("store_to_succlist:SuccList:[~p].~n", store, [SuccList]),
     ?info_p("DATA-STORE>>>>> Key:[~p] Value:[~p].~n", store, [Key, Value]),
     store_to_succlist(SuccList, TableName, Key, Value, {length(SuccList), 0}).
@@ -526,18 +506,6 @@ gather_store(Len, Acc, Pid, Ref) ->
         ?error_p("store timeout ~n", gather_store, []),
         Pid ! {error, Ref, timeout}
     end.
-
-
-%% gather_store(0, Acc, Pid, Ref) -> Pid ! {ok, Ref, Acc};
-%% gather_store(Len, Acc, Pid, Ref) ->
-%%     receive 
-%%         {ok, Ref, {ok, _Res}}    -> gather_store(Len - 1, Acc + 1, Pid, Ref);
-%%         {ok, Ref, {error, _Res}} -> gather_store(Len - 1, Acc, Pid, Ref);
-%%         {error, Ref, _Msg}       -> gather_store(Len - 1, Acc, Pid, Ref)
-%%     after ?TIMEOUT_GET ->
-%%         ?error_p("store timeout ~n", gather_store, []),
-%%         Pid ! {error, Ref, timeout}
-%%     end.
 
 store_solo(RouterName, TableName, Key, Value, Pid, Ref) ->
      TargetName = name(atom_to_list(RouterName) -- ?PROCESS_PREFIX),
@@ -579,36 +547,6 @@ store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
         ?error_p("store timeout :TabName:[~p] Key:[~p] Value:[~p]~n", store, [TableName, Key, Value]),
         {error, timeout}
     end.
-
-%%  % the successor list here includes target node itself, and
-%%  % tail of successor list
-%%  store_to_succlist([], _TableName, _Key, _Value, {Len, Cnt}) -> 
-%%      case Cnt of
-%%          Len  -> {ok, Cnt};
-%%          0    -> {ng, Cnt};
-%%          _Else -> {partial, Cnt}
-%%      end;
-%%  store_to_succlist(SuccList, TableName, Key, Value, {Len, Cnt}) ->
-%%      {RouterName, _} = hd(SuccList),
-%%  
-%%      TargetName = name(atom_to_list(RouterName) -- ?PROCESS_PREFIX),
-%%      case global:whereis_name(TargetName) of
-%%          undefined ->
-%%              ?error_p("store_to_succlist:Target undefined ~nKey:[~p] TargetName:[~p].~n",
-%%                  store, [Key, TargetName]),
-%%              NewCnt = Cnt;
-%%          _      ->
-%%              ?info_p("store_to_succlist:Key:[~p] TargetName:[~p].~n", store, [Key, TargetName]),
-%%              Reply = gen_server:call({global, TargetName}, {store, TableName, Key, Value}),
-%%              case Reply of
-%%                  {ok, _} -> NewCnt = Cnt + 1;
-%%                  {error, Msg} ->
-%%                      ?error_p("store_to_succlist: Msg:[~p] Key:[~p] TargetName:[~p].~n",
-%%                          store, [Msg, Key, TargetName]),
-%%                      NewCnt = Cnt
-%%              end
-%%      end,
-%%      store_to_succlist(tl(SuccList), TableName, Key, Value, {Len, NewCnt}).
 
 get_from_succlist([], _Key) -> {error, nodata};
 get_from_succlist(Succlist, Key) ->

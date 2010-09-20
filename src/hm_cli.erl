@@ -13,17 +13,17 @@
 -module(hm_cli).
 -export([
         cget/1,
+        create_table/3,
         cstore/2,
         drop_table/2,
         get/1,
-        rget/3,
         get_node_names/0,
         get_table_info/2,
         log_start/0,
         log_stop/0,
-        create_table/3,
-        store/2,
-        rstore/3
+        rget/3,
+        rstore/3,
+        store/2
         ]).
 -include_lib("eunit/include/eunit.hrl").
 

@@ -33,7 +33,9 @@
         test_perf/1
         ]).
 -define(microsec, (1000*1000)).
+
 -include("harmonia.hrl").
+
 -include_lib("eunit/include/eunit.hrl").
 
 
