@@ -151,10 +151,10 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}]),  {ok, ?succ_list_len + 1}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}]) ,{ok, ?succ_list_len + 1}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}]),{ok, ?succ_list_len + 1}),
-    ?assertEqual(hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}]),{ok, ?succ_list_len + 1}).
+    ?assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])),
+    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}])),
+    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}])),
+    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}])).
 
 rangeq_test1() -> 
     io:format("rangeq_test1 start~n"),
@@ -164,13 +164,13 @@ rangeq_test1() ->
     Q3 = "Fld2 == 3000",
     Q4 = "Fld2 == 9000",
 
-    ?assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:rget(D, T, Q1)),
+    ?_assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:rget(D, T, Q1)),
     io:format("[~p ~p ~p ~p]:ok~n",["case1", D,T,Q1]),
-    ?assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:rget(D, T, Q2)),
+    ?_assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:rget(D, T, Q2)),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
-    ?assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:rget(D, T, Q3)),
+    ?_assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:rget(D, T, Q3)),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
-    ?assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:rget(D, T, Q4)),
+    ?_assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:rget(D, T, Q4)),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]).
 
 rangeq_test2() -> 

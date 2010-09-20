@@ -41,7 +41,7 @@ if [ "$hm_start" = 'start' ]; then
 fi
 
 if [ "$hm_stop" = 'stop' ]; then
-    $CURDIR/hm -q -w node_foo@ubu -s stop_test@ubu -d
+    $CURDIR/hm -q -w node_foo@ubu -s stop_temp_testing@ubu -d
 fi
 
 /usr/local/bin/epmd -names
