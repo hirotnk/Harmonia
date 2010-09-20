@@ -4,8 +4,14 @@ endif
 
 all: targets
 
+nolog:	nologs
+
 targets:
 	cd src; ROOT=$(ROOT) make;
+	cd test; ROOT=$(ROOT) make;
+
+nologs:
+	cd src; ROOT=$(ROOT) make CFG="nolog";
 	cd test; ROOT=$(ROOT) make;
 
 clean:	
