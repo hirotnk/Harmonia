@@ -21,7 +21,7 @@
 -export([init/1]).
 
 -include("harmonia.hrl").
--define(connect_try, 3).
+-define(connect_try, 5).
 
 start_link(Env) -> 
     Name = proplists:get_value(name, Env),
@@ -98,8 +98,10 @@ connect_node(Node) ->
 connect_node_in(_Node, 0) -> {error, fail_to_connect};
 connect_node_in(Node, Cnt) ->
     case net_kernel:connect_node(Node) of 
-        true    -> timer:sleep(500), ok;
-        false   -> connect_node_in(Node, Cnt - 1);
+        true    -> ok;
+        false   -> 
+            timer:sleep(1000), 
+            connect_node_in(Node, Cnt - 1);
         ignored -> {error, localnode_not_alive}
     end.
 
