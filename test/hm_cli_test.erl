@@ -14,6 +14,7 @@
 -export([
         cget/1,
         create_table/0,
+        create_table_test_all/0,
         cstore/1,
         drop_table/0,
         get/1,
@@ -26,6 +27,7 @@
         rangeq_test5/0,
         rangeq_test_all/0,
         rget/1,
+        rget_test_all/1,
         rstore/1,
         store/1,
         test_all/0,
@@ -68,9 +70,9 @@ test_all(N) ->
             {"cstore(~p)     OK....\n", fun cstore/1,          N, ok}, 
             {"cget(~p)       OK....\n", fun cget/1,            N, ok},
             {"drop_table()   ~p....\n", fun drop_table/0,    {ok, any}},
-            {"create_table() ~p....\n", fun create_table/0,  {ok, any}},
-            {"rstore(~p)     OK....\n", fun rstore/1,          N, ok},
-            {"rget(~p)       OK....\n", fun rget/1,            N, ok},
+            {"create_table() ~p....\n", fun create_table_test_all/0,  {ok, any}},
+            {"rstore(~p)     OK....\n", fun rstore_test_all/1,          N, ok},
+            {"rget(~p)       OK....\n", fun rget_test_all/1,            N, ok},
             {"..end\n"}
         ]
     ),
@@ -116,10 +118,16 @@ get(Len) -> get_in(Len).
 
 cget(Len) -> cget_in(Len).
 
-create_table() ->
+create_table_test_all() ->
     Domain = "Domain1",
     Tbl   = "Tbl2",
     FldList = [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}],
+    hm_cli:create_table(Domain, Tbl, FldList).
+
+create_table() ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    FldList = [{"Fld1",true,true},{"Fld2",true,true}],
     hm_cli:create_table(Domain, Tbl, FldList).
 
 drop_table() ->
@@ -127,14 +135,27 @@ drop_table() ->
     Tbl   = "Tbl2",
     hm_cli:drop_table(Domain, Tbl).
 
-rstore(Len) ->
+rstore_test_all(Len) ->
     Domain = "Domain1",
     Tbl   = "Tbl2",
     FldList = [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}],
     {Fld1, _, _} = lists:nth(1, FldList),
     {Fld2, _, _} = lists:nth(2, FldList),
     {Fld3, _, _} = lists:nth(3, FldList),
-    rstore_in(Len, Domain, Tbl, [Fld1,Fld2,Fld3]).
+    rstore_in_test_all(Len, Domain, Tbl, [Fld1,Fld2,Fld3]).
+
+rstore(Len) ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    FldList = [{"Fld1",true,true},{"Fld2",true,true}],
+    {Fld1, _, _} = lists:nth(1, FldList),
+    {Fld2, _, _} = lists:nth(2, FldList),
+    rstore_in(Len, Domain, Tbl, [Fld1,Fld2]).
+
+rget_test_all(Len) ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    rget_in_test_all(Len, Domain, Tbl).
 
 rget(Len) ->
     Domain = "Domain1",
@@ -151,7 +172,7 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])),
+    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])),
     ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}])),
     ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}])),
     ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}])).
@@ -333,14 +354,24 @@ cget_in(Len) ->
     hm_cli:cget(Len),
     cget_in(Len-1).
 
-rstore_in(0, _Domain, _Tbl, [_,_,_]) -> ok;
-rstore_in(Len, Domain, Tbl, [Fld1,Fld2,Fld3]) ->
+rstore_in_test_all(0, _Domain, _Tbl, [_,_,_]) -> ok;
+rstore_in_test_all(Len, Domain, Tbl, [Fld1,Fld2,Fld3]) ->
     hm_cli:rstore(Domain, Tbl, [{Fld1, xxx},{Fld2, Len},{Fld3, textfile1}]),
-    rstore_in(Len - 1, Domain, Tbl, [Fld1,Fld2,Fld3]).
+    rstore_in_test_all(Len - 1, Domain, Tbl, [Fld1,Fld2,Fld3]).
+
+rstore_in(0, _Domain, _Tbl, [_,_]) -> ok;
+rstore_in(Len, Domain, Tbl, [Fld1,Fld2]) ->
+    hm_cli:rstore(Domain, Tbl, [{Fld1, xxx},{Fld2, Len}]),
+    rstore_in(Len - 1, Domain, Tbl, [Fld1,Fld2]).
+
+rget_in_test_all(0, _Domain, _Tbl) -> ok;
+rget_in_test_all(Len, Domain, Tbl) ->
+    {ok, [[xxx,Len,_]]} = hm_cli:rget(Domain, Tbl, "Fld2 == " ++ integer_to_list(Len)),
+    rget_in_test_all(Len - 1, Domain, Tbl).
 
 rget_in(0, _Domain, _Tbl) -> ok;
 rget_in(Len, Domain, Tbl) ->
-    {ok, [[xxx,Len,_]]} = hm_cli:rget(Domain, Tbl, "Fld1 == xxx and Fld2 == " ++ integer_to_list(Len)),
+    {ok, [[xxx,Len]]} = hm_cli:rget(Domain, Tbl, "Fld2 == " ++ integer_to_list(Len)),
     rget_in(Len - 1, Domain, Tbl).
 
 
