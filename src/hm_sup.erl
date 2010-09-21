@@ -49,7 +49,7 @@ start_link(Env) ->
 
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
 join(Name, RootName, Env) -> 
-    supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env})
+    supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}),
     global:sync().
 
 init({{create, Name}          = Arg, Env}) -> create_children(create, Arg, Name, Env);
