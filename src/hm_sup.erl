@@ -36,6 +36,7 @@ start_link(Env) ->
             join ->
                 ok = connect_node(RootNode),
                 join(Name, Root , Env);
+    global:sync().
             Any ->
                 io:fwrite("ERR:~p\n", [Any])
         end,
@@ -49,8 +50,9 @@ start_link(Env) ->
 
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
 join(Name, RootName, Env) -> 
-    supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}),
-    global:sync().
+    Pid = supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}),
+    global:sync(),
+    Pid.
 
 init({{create, Name}          = Arg, Env}) -> create_children(create, Arg, Name, Env);
 init({{join, Name, _RootName} = Arg, Env}) -> create_children(join,   Arg, Name, Env).
