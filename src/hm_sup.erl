@@ -36,7 +36,6 @@ start_link(Env) ->
             join ->
                 ok = connect_node(RootNode),
                 join(Name, Root , Env);
-    global:sync().
             Any ->
                 io:fwrite("ERR:~p\n", [Any])
         end,
