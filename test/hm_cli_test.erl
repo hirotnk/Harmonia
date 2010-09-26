@@ -27,6 +27,7 @@
         rangeq_test5/0,
         rangeq_test_all/0,
         rget/1,
+        rget/2,
         rget_test_all/1,
         rstore/1,
         store/1,
@@ -161,6 +162,11 @@ rget(Len) ->
     Domain = "Domain1",
     Tbl   = "Tbl2",
     rget_in(Len, Domain, Tbl).
+
+rget(Start, End) ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    rget_in(Start, End, Domain, Tbl).
 
 rangeq_test_all() ->
     %% TODO: here, you need to delete all records.
@@ -374,6 +380,10 @@ rget_in(Len, Domain, Tbl) ->
     {ok, [[xxx,Len]]} = hm_cli:rget(Domain, Tbl, "Fld2 == " ++ integer_to_list(Len)),
     rget_in(Len - 1, Domain, Tbl).
 
+rget_in(Start, End, _Domain, _Tbl) when Start > End -> ok;
+rget_in(Start, End, Domain, Tbl) ->
+    {ok, [[xxx,Start]]} = hm_cli:rget(Domain, Tbl, "Fld2 == " ++ integer_to_list(Start)),
+    rget_in(Start + 1, End, Domain, Tbl).
 
 get_node_name() ->
     {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
