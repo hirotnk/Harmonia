@@ -131,8 +131,8 @@ else
 
 erl -pa $HM_EBIN \
     -sname $hm_sname \
-    -setcookie $hm_cookie \
     ${hm_detatched} \
+    -setcookie $hm_cookie \
     -config harmonia \
     -run hm_edge start \
     -harmonia node_type $hm_node_type \
