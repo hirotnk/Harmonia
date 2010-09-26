@@ -48,10 +48,7 @@ start_link(Env) ->
     {ok, Pid}.
 
 create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
-join(Name, RootName, Env) -> 
-    Pid = supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}),
-    global:sync(),
-    Pid.
+join(Name, RootName, Env) -> supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}).
 
 init({{create, Name}          = Arg, Env}) -> create_children(create, Arg, Name, Env);
 init({{join, Name, _RootName} = Arg, Env}) -> create_children(join,   Arg, Name, Env).
@@ -101,7 +98,10 @@ connect_node(Node) ->
 connect_node_in(_Node, 0) -> {error, fail_to_connect};
 connect_node_in(Node, Cnt) ->
     case net_kernel:connect_node(Node) of 
-        true    -> ok;
+        true    -> 
+            timer:sleep(1000), 
+            global:sync(),
+            ok;
         false   -> 
             timer:sleep(1000), 
             connect_node_in(Node, Cnt - 1);
