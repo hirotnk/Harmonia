@@ -22,7 +22,7 @@ start() ->
         ok -> 
             io:fwrite("harmonia application started.~n");
         {error, Msg} ->
-            io:fwrite("harmonia application start failed:~p~n", Msg)
+            io:fwrite("harmonia application start failed:~p~n", [Msg])
     end.
 
 % Note: This API needs to be executed on the node on which hm_name_server runs
