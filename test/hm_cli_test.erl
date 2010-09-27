@@ -19,6 +19,7 @@
         drop_table/0,
         get/1,
         get_node_name/0,
+        get_cond/1,
         rangeq_test0/0,
         rangeq_test1/0,
         rangeq_test2/0,
@@ -28,9 +29,11 @@
         rangeq_test_all/0,
         rget/1,
         rget/2,
+        rget_cond/1,
         rget_test_all/1,
         rstore/1,
         store/1,
+        test_comp_get/1,
         test_all/0,
         test_all/1,
         test_perf/1
@@ -55,7 +58,7 @@ test_all(N) ->
            ({Format, Func, K, _Ret}) ->
                 Func(K),
                 io:format(Format, [K]);
-            ({Format, Func, Ret}) when Ret =:= {ok, any} ->
+           ({Format, Func, Ret}) when Ret =:= {ok, any} ->
                 case Func() of
                     {ok, _} -> io:format(Format,["OK"]);
                     Msg -> io:format(Format,[Msg])
@@ -110,6 +113,52 @@ test_perf(N) ->
             {"..end\n"}
         ]
     ).
+
+test_comp_get(R) ->
+    F = 
+        fun
+            ({Format, Func, {_,_,_,Last}=K}) ->
+               {Time, Ret} = timer:tc(?MODULE, Func, [K]),
+               %io:format("~p~n", [Ret]),
+               io:format(Format, [Last, Time/?microsec]);
+            ({Format, Func, K, Last}) ->
+               {Time, Ret} = timer:tc(?MODULE, Func, [K]),
+               %io:format("~p~n", [Ret]),
+               io:format(Format, [Last, Time/?microsec]);
+           ({Format}) ->
+               io:format(Format)
+        end,
+    lists:foreach(F, 
+        [
+            {"starting....\n"},
+            {"get   Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", get_cond, {1,1,1,R}},
+            {"rget  Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", rget_cond, {1,1}, R},
+            {"get   Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", get_cond, {1,10,1,R}},
+            {"rget  Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", rget_cond, {1,10}, R},
+            {"get   Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", get_cond, {1,100,1,R}},
+            {"rget  Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", rget_cond, {1,100}, R},
+            {"get   Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", get_cond, {1,500,1,R}},
+            {"rget  Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", rget_cond, {1,500}, R},
+            {"..end\n"}
+        ]
+    ).
+get_cond({Min, Max, From, To}) ->
+    get_cond_in(Min,Max,From,To,[]).
+
+get_cond_in(Min,Max,From,To, L) when From > To -> L;
+get_cond_in(Min,Max,From,To, L) ->
+    {ok,[{Key,Dat}]} = hm_cli:get(From),
+    NewList = 
+        case (Key >= Min) and (Key =< Max) of
+            true -> [{Key,Dat}|L];
+            false -> L
+        end,
+    get_cond_in(Min, Max, From + 1, To, NewList).
+
+rget_cond({Min,Max}) ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    hm_cli:rget(Domain, Tbl, "Fld2 >= " ++ integer_to_list(Min) ++ " and Fld2 <= " ++ integer_to_list(Max)).
 
 store(Len) -> store_in(Len).
 
