@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_event_mgr).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([start_link/0,
          add_file_handler/0,
          add_handler/2,

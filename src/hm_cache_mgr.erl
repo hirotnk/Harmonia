@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_cache_mgr).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(gen_fsm).
 -vsn('0.1').
 

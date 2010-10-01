@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_cli).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
         cget/1,
         create_table/3,

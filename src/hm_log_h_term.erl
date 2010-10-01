@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_log_h_term).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(gen_event).
 -export([add_handler/0, delete_handler/0]).
 -export([init/1, handle_event/2, handle_call/2,

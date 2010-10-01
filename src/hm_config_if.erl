@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_config_if).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(gen_server).
 -vsn('0.1').
 

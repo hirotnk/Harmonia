@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_misc).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -compile([export_all]).
 
 -include("harmonia.hrl").

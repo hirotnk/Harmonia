@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_edge).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
         start/0,
         stop/0,

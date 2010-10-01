@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_log_h_file).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(gen_event).
 -export([
         add/0,

@@ -11,6 +11,7 @@
 % the License.
 
 -module(harmonia).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(application).
 
 -export([start/2, stop/1]).

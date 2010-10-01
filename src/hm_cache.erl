@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_cache).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -vsn('0.1').
 
 -export([

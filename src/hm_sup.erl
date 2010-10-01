@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_sup).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(supervisor).
 -export([
         create/2,

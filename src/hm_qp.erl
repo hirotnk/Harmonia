@@ -21,6 +21,7 @@
 %% 
 
 -module(hm_qp).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
         eval/1,
         parse/1,
