@@ -34,9 +34,17 @@ stop() ->
     stop_in(NameList).
 stop_in([]) -> ok;
 stop_in([{_Name, NodeName}|NameList]) ->
-    ok = rpc:call(NodeName, application, stop, [harmonia]),
-    ok = rpc:call(NodeName, init, stop, []),
-    io:fwrite("harmonia application stopping.~n"),
+    case rpc:call(NodeName, application, stop, [harmonia]) of
+        ok ->
+            case rpc:call(NodeName, init, stop, []) of
+                ok -> 
+                    io:fwrite("Stopped the node [~p].~n", [NodeName]);
+                {badrpc, Reason} ->
+                    io:fwrite("Failed to stop the node [~p].~n", [Reason])
+            end;
+        {badrpc, Reason} ->
+            io:fwrite("Failed to stop harmonia on the node [~p].~n", [Reason])
+    end,
     stop_in(NameList).
 
 stop([RootNode]) -> rpc:call(RootNode, hm_edge, stop, []).

@@ -65,16 +65,16 @@ if [ "$hm_quit" = "stop" ]; then
 
     echo "stopping all Harmonia nodes..."
     erl -pa $HM_EBIN \
+        -noshell \
         -sname $hm_sname \
-        ${hm_detatched} \
         -setcookie $hm_cookie \
         -config harmonia \
         -harmonia sname $hm_sname \
         -s hm_edge stop $hm_root_node \
         -s init stop
 
-    exit 0
     echo "..stopped."
+    exit 0
 fi
 
 hm_node_type=${opt_node_type}
