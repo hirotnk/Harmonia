@@ -23,12 +23,7 @@
 -include("harmonia.hrl").
 
 add() ->
-    {ok, {_, Name}}    = hm_config:get(name),
-    {ok, {_, Logfile}} = hm_config:get(logfile),
-    {ok, {_, Ext}}     = hm_config:get(logfile_ext),
-    {ok, {_, Logdir}}  = hm_config:get(logdir),
-    
-    FileName = Logdir ++ Logfile ++ "_" ++ atom_to_list(Name) ++ Ext,
+    FileName = hm_misc:make_log_file_name(),
     io:format("~p~n", [FileName]),
     hm_event_mgr:add_handler(?MODULE, list_to_atom(FileName)).
 

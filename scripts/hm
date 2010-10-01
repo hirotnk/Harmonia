@@ -114,7 +114,6 @@ fi
 #      Sets the maximum number of concurrent processes for this system. Number must be in 
 #      the range 16..134217727. Default is 32768.
 
-echo "starting Harmonia..."
 if [ "$opt_node_type" = "create" ]; then
 
 erl -pa $HM_EBIN \
@@ -141,4 +140,4 @@ erl -pa $HM_EBIN \
               sname $hm_sname \
               root_node $hm_root_node
 fi
-echo "..started."
+echo "Launched the node:[$hm_sname]"

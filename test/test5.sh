@@ -1,6 +1,15 @@
-#!/bin/sh
+#!/bin/bash
 
-CURDIR=/home/hiro/sfsu/CSC897/harmonia/Harmonia/scripts
+# $HM_HOME is needed 
+temp_cur_dir=`dirname $0`
+cur_full_path=`cd $temp_cur_dir;pwd`
+hm_path=${cur_full_path/'/test'/''} 
+
+hm_home=${HM_HOME:-"$hm_path"} # if HM_HOME is not set, use $hm_path
+
+scpath=$hm_home"/scripts"
+
+cd $hm_home
 
 usage () {
     echo "Usage(stop ):${0} [-s(start)|-q(stop)]" >&2
@@ -33,16 +42,17 @@ if [ "$hm_start" = "start" -a "$hm_stop" = "stop" ]; then
 fi
 
 if [ "$hm_start" = 'start' ]; then
-    $CURDIR/hm -t create -n foo -s node_foo@ubu -d 
-    $CURDIR/hm -t join -r foo -n bar  -s node_bar@ubu -w node_foo@ubu -d
-    $CURDIR/hm -t join -r foo -n hoge -s node_hoge@ubu -w node_foo@ubu -d
-    $CURDIR/hm -t join -r foo -n cat  -s node_cat@ubu -w node_foo@ubu -d
-    $CURDIR/hm -t join -r foo -n dog  -s node_dog@ubu -w node_foo@ubu -d
+    $scpath/hm -t create -n foo -s node_foo@ubu -d 
+    $scpath/hm -t join -r foo -n bar  -s node_bar@ubu -w node_foo@ubu -d
+    $scpath/hm -t join -r foo -n hoge -s node_hoge@ubu -w node_foo@ubu -d
+    $scpath/hm -t join -r foo -n cat  -s node_cat@ubu -w node_foo@ubu -d
+    $scpath/hm -t join -r foo -n dog  -s node_dog@ubu -w node_foo@ubu -d
 fi
 
 if [ "$hm_stop" = 'stop' ]; then
-    $CURDIR/hm -q -w node_foo@ubu -s stop_temp_testing@ubu -d
+    $scpath/hm -q -w node_foo@ubu -s stop_temp_testing@ubu -d
 fi
-
-/usr/local/bin/epmd -names
+epmd_path=`which epmd`
+EPMD_PATH=`dirname $epmd_path`
+$EPMD_PATH/epmd -names
 

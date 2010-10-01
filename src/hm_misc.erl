@@ -12,7 +12,31 @@
 
 -module(hm_misc).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
--compile([export_all]).
+-export([
+        check_exist/2,
+        check_pred_and_successor/1,
+        closest_predecessor/2,
+        crypto_start/0,
+        crypto_stop/0,
+        del_dup/1,
+        get_digest/1,
+        get_first_alive_entry/1,
+        get_first_fit_router/1,
+        get_node/0,
+        get_rand_procname/0,
+        get_successor/1,
+        get_successor_alive/1,
+        get_vector_from_name/2,
+        is_alive/1,
+        is_between/3,
+        is_between2/3,
+        is_pred_nil/1,
+        make_log_file_name/0,
+        make_request_list/2,
+        make_request_list_from_dt/2,
+        replace_nth/3,
+        search_table_attlist/2
+        ]).
 
 -include("harmonia.hrl").
 
@@ -231,7 +255,6 @@ search_table_attlist(DTName, TblList) ->
 
 del_dup(List) ->
     lists:reverse(del_dup_in(List)).
-
 del_dup_in(Old) ->
     lists:foldl(
         fun({Node,Vec}, Acc) -> 
@@ -241,4 +264,11 @@ del_dup_in(Old) ->
             end
         end, [], Old
     ).
+
+make_log_file_name() ->
+    {ok, {_, Name}}    = hm_config:get(name),
+    {ok, {_, Logfile}} = hm_config:get(logfile),
+    {ok, {_, Ext}}     = hm_config:get(logfile_ext),
+    {ok, {_, Logdir}}  = hm_config:get(logdir),
+    Logdir ++ Logfile ++ "_" ++ atom_to_list(Name) ++ Ext.
 

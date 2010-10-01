@@ -19,17 +19,13 @@
         ]).
 
 start() ->
+    {ok, [[Nodename]]} = init:get_argument(sname),
+    error_logger:logfile({open, "SYS_ERROR_" ++ Nodename ++ ".log"}),
     case application:start(harmonia) of
-        ok -> 
-            io:fwrite("harmonia application started.~n");
-        {error, Msg} ->
-            io:fwrite("harmonia application start failed:~p~n", [Msg])
+        ok -> ok;
+        {error, Msg} -> init:stop(1)
     end.
 
-% Note: This API needs to be executed on the node on which hm_name_server runs
-%       because it has to be already connected to all nodes.
-%
-% this API takes a while to finish.
 stop() ->
     {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
     stop_in(NameList).
