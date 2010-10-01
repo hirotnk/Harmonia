@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_cli_test).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
         cget/1,
         cget_cond/1,

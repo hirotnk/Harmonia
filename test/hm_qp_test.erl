@@ -21,6 +21,7 @@
 %% @end
 
 -module(hm_qp_test).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -compile([export_all]).
 
 -include_lib("eunit/include/eunit.hrl").

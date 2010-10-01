@@ -11,6 +11,7 @@
 % the License.
 
 -module(hm_test).
+-author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
         dbgadd/1,
         dbgall/0,
