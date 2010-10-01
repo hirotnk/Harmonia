@@ -20,10 +20,10 @@
 
 start() ->
     {ok, [[Nodename]]} = init:get_argument(sname),
-    error_logger:logfile({open, "SYS_ERROR_" ++ Nodename ++ ".log"}),
+    error_logger:logfile({open, "SYS_INFO_" ++ Nodename ++ ".log"}),
     case application:start(harmonia) of
         ok -> ok;
-        {error, Msg} -> init:stop(1)
+        {error, _Msg} -> init:stop(1)
     end.
 
 stop() ->
