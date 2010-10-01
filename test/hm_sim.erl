@@ -155,7 +155,7 @@ showstat(NodeList) ->
     showstat_in(NodeList),
     {Avg, Sum} = calcavgsum(NodeList,[]),
     N = length(NodeList),
-    SD = math:sqrt((Sum - (N*Avg*Avg))/(N - 1)),
+    SD = math:sqrt((Sum - (N*Avg*Avg))/N),
     io:format("sd for ~5.5p nodes:[~10.5f] avg:[~10.5f], sd/avg:[~10.5f%] \n", [N, SD, Avg, abs(SD / Avg)*100]).
 
 showstat_in([]) -> ok;
