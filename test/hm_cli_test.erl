@@ -119,11 +119,10 @@ test_comp_get(R) ->
     F = 
         fun
             ({Format, Func, {_,_,_,Last}=K}) ->
-               {Time, Ret} = timer:tc(?MODULE, Func, [K]),
-               %io:format("~p~n", [Ret]),
+               {Time, _} = timer:tc(?MODULE, Func, [K]),
                io:format(Format, [Last, Time/?microsec]);
             ({Format, Func, K, Last}) ->
-               {Time, Ret} = timer:tc(?MODULE, Func, [K]),
+               {Time, _} = timer:tc(?MODULE, Func, [K]),
                %io:format("~p~n", [Ret]),
                io:format(Format, [Last, Time/?microsec]);
            ({Format}) ->
@@ -151,7 +150,7 @@ test_comp_get(R) ->
 get_cond({Min, Max, From, To}) ->
     get_cond_in(Min,Max,From,To,[]).
 
-get_cond_in(Min,Max,From,To, L) when From > To -> L;
+get_cond_in(_Min,_Max,From,To, L) when From > To -> L;
 get_cond_in(Min,Max,From,To, L) ->
     {ok,[{Key,Dat}]} = hm_cli:get(From),
     NewList = 
@@ -165,7 +164,7 @@ get_cond_in(Min,Max,From,To, L) ->
 cget_cond({Min, Max, From, To}) ->
     cget_cond_in(Min,Max,From,To,[]).
 
-cget_cond_in(Min,Max,From,To, L) when From > To -> L;
+cget_cond_in(_Min,_Max,From,To, L) when From > To -> L;
 cget_cond_in(Min,Max,From,To, L) ->
     {ok,[{Key,Dat}]} = hm_cli:cget(From),
     NewList = 
@@ -247,10 +246,16 @@ rangeq_test_all() ->
     rangeq_test5().
 
 rangeq_test0() -> 
-    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}])),
-    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}])),
-    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}])),
-    ?_assertEqual({ok, ?succ_list_len + 1}, hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}])).
+    Result1 = {ok, ?succ_list_len + 1},
+    L1 = [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}],
+    L2 = [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile2}],
+    L3 = [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile3}],
+    L4 = [{"Fld1", aaa},{"Fld2", 9000},{"Fld3", textfile4}],
+
+    ?assertEqual(Result1, hm_cli:rstore("Domain1", "Tbl2", L1)),
+    ?assertEqual(Result1, hm_cli:rstore("Domain1", "Tbl2", L2)),
+    ?assertEqual(Result1, hm_cli:rstore("Domain1", "Tbl2", L3)),
+    ?assertEqual(Result1, hm_cli:rstore("Domain1", "Tbl2", L4)).
 
 rangeq_test1() -> 
     io:format("rangeq_test1 start~n"),
@@ -260,13 +265,13 @@ rangeq_test1() ->
     Q3 = "Fld2 == 3000",
     Q4 = "Fld2 == 9000",
 
-    ?_assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:rget(D, T, Q1)),
+    ?assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:rget(D, T, Q1)),
     io:format("[~p ~p ~p ~p]:ok~n",["case1", D,T,Q1]),
-    ?_assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:rget(D, T, Q2)),
+    ?assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:rget(D, T, Q2)),
     io:format("[~p ~p ~p ~p]:ok~n",["case2",D,T,Q2]),
-    ?_assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:rget(D, T, Q3)),
+    ?assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:rget(D, T, Q3)),
     io:format("[~p ~p ~p ~p]:ok~n",["case3",D,T,Q3]),
-    ?_assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:rget(D, T, Q4)),
+    ?assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:rget(D, T, Q4)),
     io:format("[~p ~p ~p ~p]:ok~n",["case4",D,T,Q4]).
 
 rangeq_test2() -> 
