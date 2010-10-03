@@ -9,12 +9,19 @@
 % WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 % License for the specific language governing permissions and limitations under
 % the License.
-
+%%%-------------------------------------------------------------------
+%%% @author Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%% @copyright (C) 2010, hiro
+%%% @doc data storage I/F
+%%% @end
+%%% Created :  2 Oct 2010 by Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%%-------------------------------------------------------------------
 -module(hm_ds).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(gen_server).
 -vsn('0.1').
 
+%% API
 -export([
         cdel/1,
         cget/1,
@@ -40,7 +47,9 @@
         lookup_data_table_solo/6,
         store_solo/6
         ]).
--export([init/1, terminate/2, handle_call/3, handle_cast/2]).
+%% gen_server callbacks
+-export([init/1, handle_call/3, handle_cast/2, handle_info/2,
+         terminate/2, code_change/3]).
 
 -include("harmonia.hrl").
 
@@ -48,6 +57,16 @@
 -define(hm_global_table, hm_table_global).
 
 
+%%%===================================================================
+%%% API
+%%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc
+%% Starts the server
+%%
+%% @spec start_link(Env) -> {ok, Pid} | ignore | {error, Error}
+%% @end
+%%--------------------------------------------------------------------
 start_link(RegName) ->
     gen_server:start_link({global, name(RegName)}, ?MODULE, RegName, []).
 
@@ -57,75 +76,240 @@ stop() ->
 stop(RegName) ->
     gen_server:cast({global, name(RegName)}, stop).
 
+%%--------------------------------------------------------------------
+%% @doc Key::atom()|string()|integer()
+%% @spec(get(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%% @end
+%%--------------------------------------------------------------------
+get(Key) ->
+    get_in(Key).
+
+%%--------------------------------------------------------------------
+%% @doc Key::atom()|string()|integer()
+%%      simple K/V store with cache enabled
+%% @spec(cget(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%% @end
+%%--------------------------------------------------------------------
+cget(Key) ->
+    cget_in(Key).
+
+%%--------------------------------------------------------------------
+%% @doc Range Query API
+%%      Returned list does not include DTName
+%% @spec(rget(DomainName::string(), TableName::string(), Cond::string())) ->
+%%              {ok, Rec::list()} | {error, Msg::any()}
+%% @end
+%%--------------------------------------------------------------------
+rget(DomainName, TableName, Cond) ->
+    get_in(DomainName, TableName, Cond).
+
+%%--------------------------------------------------------------------
+%% @doc simple K/V store
+%% @spec(store(Key::atom(), Value::any() ) -> 
+%%              {ok, Cnt::integer()} | {partial, Cnt::integer()} | {ng, Msg::string}
+%% @end
+%%--------------------------------------------------------------------
+store(Key, Value) ->
+    store_in(Key, Value).
+
+%%--------------------------------------------------------------------
+%% @doc simple K/V store with cache enabled
+%% @spec(cstore(Key::atom(), Value::any() ) -> 
+%%              {ok, Cnt::integer()} | {partial, Cnt::integer()} | {ng, Msg::string}
+%% @end
+%%--------------------------------------------------------------------
+cstore(Key, Value) ->
+    cstore_in(Key, Value).
+
+%%--------------------------------------------------------------------
+%% @doc Range Query API
+%%      KVList: [{FieldName::string(), Value::any()}]
+%% @spec(rstore(DomainName::string(), TableName::string(), KVList)) ->
+%%              {ok, Rec::list()} | {error, Msg::any()}
+%% @end
+%%--------------------------------------------------------------------
+rstore(DomainName, TableName, KVList) ->
+    store_in(DomainName, TableName, KVList).
+
+%%--------------------------------------------------------------------
+%% @doc Key::atom()|string()|integer()
+%% @spec(del(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%% @end
+%%--------------------------------------------------------------------
+del(Key) ->
+    del_in(Key).
+
+%%--------------------------------------------------------------------
+%% @doc Key::atom()|string()|integer()
+%%      simple K/V delete with cache enabled
+%% @spec(cdel(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%% @end
+%%--------------------------------------------------------------------
+cdel(Key) ->
+    cdel_in(Key).
+
+%%--------------------------------------------------------------------
+%% @doc Range Delete API
+%%      Returned list does not include DTName
+%% @spec(rdel(DomainName::string(), TableName::string(), Cond::string())) ->
+%%              {ok, DeletedNum} | {error, Msg::any()}
+%%
+%% @end
+%%--------------------------------------------------------------------
+rdel(DomainName, TableName, Cond) ->
+    del_in(DomainName, TableName, Cond).
+
+%%--------------------------------------------------------------------
+%% @doc return node specific module name
+%% @spec
+%% @end
+%%--------------------------------------------------------------------
+name(Name) when is_list(Name) -> 
+    list_to_atom(?MODULE_NAME ++ "_" ++ Name);
+name(Name) -> 
+    list_to_atom(?MODULE_NAME ++ "_" ++ atom_to_list(Name)).
+
+%%%===================================================================
+%%% gen_server callbacks
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Initializes the server
+%%
+%% @spec init(Args) -> {ok, State} |
+%%                     {ok, State, Timeout} |
+%%                     ignore |
+%%                     {stop, Reason}
+%% @end
+%%--------------------------------------------------------------------
+init(RegName) ->
+    ets:new(?hm_global_table, [bag, public, named_table]),
+    {ok, {RegName, [?hm_global_table]}}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% This function is called by a gen_server when it is about to
+%% terminate. It should be the opposite of Module:init/1 and do any
+%% necessary cleaning up. When it returns, the gen_server terminates
+%% with Reason. The return value is ignored.
+%%
+%% @spec terminate(Reason, State) -> void()
+%% @end
+%%--------------------------------------------------------------------
 terminate(Reason, State) ->
     ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
     ok.
 
-%% @spec(get(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Handling cast messages
 %%
-%% @doc Key::atom()|string()|integer()
-get(Key) ->
-    get_in(Key).
+%% @spec handle_cast(Msg, State) -> {noreply, State} |
+%%                                  {noreply, State, Timeout} |
+%%                                  {stop, Reason, State}
+%% @end
+%%--------------------------------------------------------------------
+handle_cast(stop, State) ->
+    {stop, normal, State}.
 
-%% @spec(cget(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Handling call messages
 %%
-%% @doc Key::atom()|string()|integer()
-%%      simple K/V store with cache enabled
-cget(Key) ->
-    cget_in(Key).
+%% @spec handle_call(Request, From, State) ->
+%%                                   {reply, Reply, State} |
+%%                                   {reply, Reply, State, Timeout} |
+%%                                   {noreply, State} |
+%%                                   {noreply, State, Timeout} |
+%%                                   {stop, Reason, Reply, State} |
+%%                                   {stop, Reason, State}
+%% @end
+%%--------------------------------------------------------------------
+handle_call({register_table, TableName}, _From, {RegName, TableList}) ->
+    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
+    {reply, {ok, register_table, TableName}, {RegName, [TableName|TableList]}};
 
-%% @spec(rget(DomainName::string(), TableName::string(), Cond::string())) ->
-%%              {ok, Rec::list()} | {error, Msg::any()}
-%%
-%% @doc Range Query API
-%%      Returned list does not include DTName
-rget(DomainName, TableName, Cond) ->
-    get_in(DomainName, TableName, Cond).
+handle_call({unregister_table, TableName}, _From, {RegName, TableList}) ->
+    ?info_p("unregister_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
+    NewTableList = TableList -- [TableName],
+    {reply, {ok, unregister_table}, {RegName, NewTableList}};
 
-%% @spec(store(Key::atom(), Value::any() ) -> 
-%%              {ok, Cnt::integer()} | {partial, Cnt::integer()} | {ng, Msg::string}
-%%
-%% @doc simple K/V store
-store(Key, Value) ->
-    store_in(Key, Value).
+handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
+    case lists:member(DTName, TableList) of
+        true -> {reply, {ok, DTName}, State};
+        false -> {reply, {error, no_table}, State}
+    end;
 
-%% @spec(cstore(Key::atom(), Value::any() ) -> 
-%%              {ok, Cnt::integer()} | {partial, Cnt::integer()} | {ng, Msg::string}
-%%
-%% @doc simple K/V store with cache enabled
-cstore(Key, Value) ->
-    cstore_in(Key, Value).
+handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+    % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
+    Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
+    {reply, {ok, lists:usort(Reply)}, State};
 
-%% @spec(rstore(DomainName::string(), TableName::string(), KVList)) ->
-%%              {ok, Rec::list()} | {error, Msg::any()}
-%%
-%% @doc Range Query API
-%%      KVList: [{FieldName::string(), Value::any()}]
-%%
-rstore(DomainName, TableName, KVList) ->
-    store_in(DomainName, TableName, KVList).
+handle_call({select_table, DTName, FlistModified, MS}, _From, State) ->
+    Reply = ets:select(DTName, [{{'$1', FlistModified},MS,['$$']}]),
+    {reply, {ok, lists:usort(Reply)}, State};
 
-%% @spec(del(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
-%%
-%% @doc Key::atom()|string()|integer()
-del(Key) ->
-    del_in(Key).
+handle_call({select_delete_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+    NumDeleted = ets:select_delete(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
+    {reply, {ok, NumDeleted}, State};
+handle_call({select_delete_table, DTName, FlistModified, MS}, _From, State) ->
+    NumDeleted = ets:select_delete(DTName, [{{'$1', FlistModified},MS,['$$']}]),
+    {reply, {ok, NumDeleted}, State};
 
-%% @spec(cdel(Key) -> {ok, {Key, Value::any()})} | {error, Msg)}
-%%
-%% @doc Key::atom()|string()|integer()
-%%      simple K/V delete with cache enabled
-cdel(Key) ->
-    cdel_in(Key).
+handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
+    ?info_p("store:TableName:[~p] Key:[~p] Value:[~p] TableList:[~p].~n", store, [TableName, Key, Value, TableList]),
+    case lists:member(TableName, TableList) of 
+        false -> 
+            {reply, {error, {store, no_table_found}}, {RegName, TableList}};
+        true ->
+            Ret = (catch ets:insert(TableName, {Key, Value})),
+            case Ret of
+                true ->
+                    {reply, {ok, insert}, {RegName, TableList}};
+                Any ->
+                    {reply, 
+                     {error, {store, exception, TableName, {Key, Value}, Any}}, 
+                     {RegName, TableList}
+                    }
+            end
+    end;
 
-%% @spec(rdel(DomainName::string(), TableName::string(), Cond::string())) ->
-%%              {ok, DeletedNum} | {error, Msg::any()}
-%%
-%% @doc Range Delete API
-%%      Returned list does not include DTName
-rdel(DomainName, TableName, Cond) ->
-    del_in(DomainName, TableName, Cond).
+handle_call({get, Key}, _From, {RegName, TableList}) ->
+    Reply = ets:lookup(?hm_global_table, Key),
+    {reply, Reply, {RegName, TableList}};
 
+handle_call({delete, Key}, _From, {RegName, TableList}) ->
+    ets:delete(?hm_global_table, Key),
+    {reply, {ok, delete, Key}, {RegName, TableList}}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Handling all non call/cast messages
+%%
+%% @spec handle_info(Info, State) -> {noreply, State} |
+%%                                   {noreply, State, Timeout} |
+%%                                   {stop, Reason, State}
+%% @end
+%%--------------------------------------------------------------------
+handle_info(_Info, State) ->
+    {noreply, State}.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Convert process state when code is changed
+%%
+%% @spec code_change(OldVsn, State, Extra) -> {ok, NewState}
+%% @end
+%%--------------------------------------------------------------------
+code_change(_OldVsn, State, _Extra) ->
+    {ok, State}.
 
 %% ----------------------------------------------------------------------------
 %% Internal Functions
@@ -170,24 +354,24 @@ cstore_in(Key, Value) ->
 
 get_in(DomainName, TableName, Cond) ->
     DTName = list_to_atom(DomainName ++ TableName),
-    dynomite_prof:start_prof(make_request_list_from_dt),
+    %dynomite_prof:start_prof(make_request_list_from_dt),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
-    dynomite_prof:stop_prof(make_request_list_from_dt),
-    dynomite_prof:start_prof(lookup_index_table_node),
+    %dynomite_prof:stop_prof(make_request_list_from_dt),
+    %dynomite_prof:start_prof(lookup_index_table_node),
     {ok, IndexTableNode, IndexDsNode} =  lookup_index_table_node(NodeList),
-    dynomite_prof:stop_prof(lookup_index_table_node),
-    dynomite_prof:start_prof(lookup_index_table_attribute),
+    %dynomite_prof:stop_prof(lookup_index_table_node),
+    %dynomite_prof:start_prof(lookup_index_table_attribute),
     {ok, _Tid, AttList} =  lookup_index_table_attribute(IndexTableNode, DTName),
-    dynomite_prof:stop_prof(lookup_index_table_attribute),
-    dynomite_prof:start_prof(get_query_spec),
+    %dynomite_prof:stop_prof(lookup_index_table_attribute),
+    %dynomite_prof:start_prof(get_query_spec),
     {ok, MS, MSData, FlistIndex, FlistData} = get_query_spec(Cond, AttList),
-    dynomite_prof:stop_prof(get_query_spec),
-    dynomite_prof:start_prof(get_data_node_list),
+    %dynomite_prof:stop_prof(get_query_spec),
+    %dynomite_prof:start_prof(get_data_node_list),
     {ok, DataNodeList} = get_data_node_list(IndexDsNode, DTName, FlistIndex, MS, get),
-    dynomite_prof:stop_prof(get_data_node_list),
-    dynomite_prof:start_prof(scatter_gather),
+    %dynomite_prof:stop_prof(get_data_node_list),
+    %dynomite_prof:start_prof(scatter_gather),
     Res = scatter_gather(DomainName, DataNodeList, DTName, FlistData, MSData, TableName, Cond),
-    dynomite_prof:stop_prof(scatter_gather),
+    %dynomite_prof:stop_prof(scatter_gather),
     Res.
 
 del_in(DomainName, TableName, Cond) ->
@@ -582,71 +766,3 @@ log_get_data([]) -> ok;
 log_get_data(DataList) ->
     ?info_p("DATA-GET  >>>>> Value:[~p].~n", store, [hd(DataList)]),
     log_get_data(tl(DataList)).
-
-init(RegName) ->
-    ets:new(?hm_global_table, [bag, public, named_table]),
-    {ok, {RegName, [?hm_global_table]}}.
-
-handle_cast(stop, State) ->
-    {stop, normal, State}.
-
-handle_call({register_table, TableName}, _From, {RegName, TableList}) ->
-    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
-    {reply, {ok, register_table, TableName}, {RegName, [TableName|TableList]}};
-
-handle_call({unregister_table, TableName}, _From, {RegName, TableList}) ->
-    ?info_p("unregister_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
-    NewTableList = TableList -- [TableName],
-    {reply, {ok, unregister_table}, {RegName, NewTableList}};
-
-handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
-    case lists:member(DTName, TableList) of
-        true -> {reply, {ok, DTName}, State};
-        false -> {reply, {error, no_table}, State}
-    end;
-
-handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
-    % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
-    Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
-    {reply, {ok, lists:usort(Reply)}, State};
-
-handle_call({select_table, DTName, FlistModified, MS}, _From, State) ->
-    Reply = ets:select(DTName, [{{'$1', FlistModified},MS,['$$']}]),
-    {reply, {ok, lists:usort(Reply)}, State};
-
-handle_call({select_delete_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
-    NumDeleted = ets:select_delete(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
-    {reply, {ok, NumDeleted}, State};
-handle_call({select_delete_table, DTName, FlistModified, MS}, _From, State) ->
-    NumDeleted = ets:select_delete(DTName, [{{'$1', FlistModified},MS,['$$']}]),
-    {reply, {ok, NumDeleted}, State};
-
-handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
-    ?info_p("store:TableName:[~p] Key:[~p] Value:[~p] TableList:[~p].~n", store, [TableName, Key, Value, TableList]),
-    case lists:member(TableName, TableList) of 
-        false -> 
-            {reply, {error, {store, no_table_found}}, {RegName, TableList}};
-        true ->
-            Ret = (catch ets:insert(TableName, {Key, Value})),
-            case Ret of
-                true ->
-                    {reply, {ok, insert}, {RegName, TableList}};
-                Any ->
-                    {reply, 
-                     {error, {store, exception, TableName, {Key, Value}, Any}}, 
-                     {RegName, TableList}
-                    }
-            end
-    end;
-
-handle_call({get, Key}, _From, {RegName, TableList}) ->
-    Reply = ets:lookup(?hm_global_table, Key),
-    {reply, Reply, {RegName, TableList}};
-
-handle_call({delete, Key}, _From, {RegName, TableList}) ->
-    ets:delete(?hm_global_table, Key),
-    {reply, {ok, delete, Key}, {RegName, TableList}}.
-
-name(Name) when is_list(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ Name);
-name(Name) -> list_to_atom(?MODULE_NAME ++ "_" ++ atom_to_list(Name)).
-

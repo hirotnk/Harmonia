@@ -10,6 +10,31 @@
 % License for the specific language governing permissions and limitations under
 % the License.
 
+%%%-------------------------------------------------------------------
+%%% File    : hm_cache.erl
+%%% Description : cget/cstore interface
+%%% The data structure of cache is following:
+%%%   Record format: 
+%%%     { 
+%%%       Key              : key of this record
+%%%       Value            : value of this record, type ::any()
+%%%       Reference Count  : this field is incremented every time 
+%%%                          the record is referenced
+%%%       Expiration Time  : indicates when this cache is expired
+%%%     }
+%%%
+%%% (1) data store
+%%%     when data is stored, reference count is set to 0(zero), and
+%%%     expiration time is set to current time + configured amount
+%%%     of time
+%%%
+%%% (2) data get
+%%%     when data is referenced, reference count is incremented by 1,
+%%%     and expiration time is set to current time + configured amount
+%%%     of time, then the record is update.
+%%%
+%%%-------------------------------------------------------------------
+
 -module(hm_cache).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -vsn('0.1').
@@ -22,6 +47,10 @@
     ]).
 
 -include("harmonia.hrl").
+
+%%====================================================================
+%% API
+%%====================================================================
 
 start() ->
     ets:new(?hm_ets_cache_table, [named_table, public]).
@@ -37,7 +66,6 @@ get_cache(Key) ->
     case ets:lookup(?hm_ets_cache_table, Key) of
         [] -> none;
         [{Key, Value, Cnt, _}] -> 
-            % {"key10000",{10000,"key10000"},0,1283991518}
            {MegaSecs, Secs, _Microsecs} = now(),
            ets:update_element(
                ?hm_ets_cache_table, 

@@ -10,6 +10,12 @@
 % License for the specific language governing permissions and limitations under
 % the License.
 
+%%%-------------------------------------------------------------------
+%%% File    : harmonia.erl
+%%% Description : application to start supervisor
+%%%
+%%%-------------------------------------------------------------------
+
 -module(harmonia).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(application).

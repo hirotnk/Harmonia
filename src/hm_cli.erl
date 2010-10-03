@@ -9,9 +9,17 @@
 % WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 % License for the specific language governing permissions and limitations under
 % the License.
-
+%%%-------------------------------------------------------------------
+%%% @author Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%% @copyright (C) 2010, Yoshihiro TANAKA
+%%% @doc
+%%%  user interface of Harmonia
+%%% @end
+%%% Created :  2 Oct 2010 by Yoshihiro <hirotnkg@gmail.com>
+%%%-------------------------------------------------------------------
 -module(hm_cli).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
+%% API
 -export([
         cget/1,
         create_table/3,
@@ -28,123 +36,148 @@
         ]).
 -include_lib("eunit/include/eunit.hrl").
 
+%%%===================================================================
+%%% API
+%%%===================================================================
+%%--------------------------------------------------------------------
+%% @doc simple K/V store api
 %% @spec(store(Key::atom()|string()|integer(), Value::any()) -> 
 %%           {ok, Cnt::integer()} | 
 %%           {partial, Cnt::integer()} |
 %%           {ng, Msg::string}).
-%%
-%% @doc simple K/V store api
+%% @end
+%%--------------------------------------------------------------------
 store(Key, Value) ->
     hm_ds:store(Key, Value).
 
-
+%%--------------------------------------------------------------------
+%% @doc simple K/V store api with cache enabled
 %% @spec(store(Key::atom()|string()|integer(), Value::any()) ->
 %%          {ok, Cnt::integer()} | 
 %%          {partial, Cnt::integer()} |
 %%          {ng, Msg::string}).
 %%
-%% @doc simple K/V store api with cache enabled
+%% @end
+%%--------------------------------------------------------------------
 cstore(Key, Value) ->
     hm_ds:cstore(Key, Value).
 
-
-%% @spec(rstore(DomainName::string(), TableName::string(), KVList::list()) -> 
+%%--------------------------------------------------------------------
+%% @doc store API for range query
+%%      this API stores index and data.
+%%
+%%      format of KVList::[{FldName::string(), Vaue::any()}]
+%%      Note: table for this domain & table name, and field definition 
+%%            need to be made in advance.
+%% @spec(rstore(DomainName::string(), TableName::string(), KVList::list()) 
+%%       -> 
 %%           {ok, Cnt::integer()} |  
 %%           {partial, Cnt::integer()} |
 %%           {ng, Msg::string} |
 %%           {error, Msg::string}).
-%%
-%% @doc store API for table format.
-%%      this API stores index and data.
-%%
-%%      format of KVList::[{FldName::string(), Vaue::any()}]
-%%      Note: table for this domain & table name, and field definition need to be
-%%            made in advance.
+%% @end
+%%--------------------------------------------------------------------
 rstore(DomainName, TableName, KVList) ->
     hm_ds:rstore(DomainName, TableName, KVList).
 
+%%--------------------------------------------------------------------
+%% @doc simple K/V get api
+%%      Recset::Records, Records::ListofRec
 %% @spec(get(Key::atom()|string()|integer()) -> {ok, Result::Recset}|
 %%                                              {error, nodata}).
-%%
-%% @doc Recset::Records, Records::ListofRec
-%%      simple K/V get api
+%% @end
+%%--------------------------------------------------------------------
 get(Key) ->
     hm_ds:get(Key).
 
-
+%%--------------------------------------------------------------------
+%% @doc simple K/V get api with cache enabled
 %% @spec(get(Key::atom()|string()|integer()) -> {ok, Result::any}|
 %%                                              {error, nodata}).
 %%
-%% @doc simple K/V get api with cache enabled
+%% @end
+%%--------------------------------------------------------------------
 cget(Key) ->
     hm_ds:cget(Key).
 
-%% @spec(rget(DomainName::string(), TableName::string(), Cond::string()) ->
-%%           {ok, Result}|{error, Msg}).
-%%
+%%--------------------------------------------------------------------
 %% @doc rget API for table format.
 %%      - format of Cond::string
 %%      - available relational operator::==|!=|<|>|[=<|<=]|[>=|=>]
 %%      - available logical operator::and|or
 %%      - parenthesis also available::(|)
 %%      - name of fields and tables need to be stringnum(start with character)
+%% @spec(rget(DomainName::string(), TableName::string(), Cond::string()) ->
+%%           {ok, Result}|{error, Msg}).
+%% @end
+%%--------------------------------------------------------------------
 rget(DomainName, TableName, Cond) ->
     hm_ds:rget(DomainName, TableName, Cond).
 
-%% @spec(get_node_names() -> {ok, NameList::list()}).
-%%
+%%--------------------------------------------------------------------
 %% @doc get list of nodes participating Harmonia ring
+%% @spec(get_node_names() -> {ok, NameList::list()}).
+%% @end
+%%--------------------------------------------------------------------
 get_node_names() ->
-    gen_server:call({global, hm_name_server}, get_name_list).
+    hm_name_server:get_list(get_name_list).
 
-
-%% @spec(create_table(DomainName::string(), TableName::string(), AttList::list()) ->
-%%           {ok, {NodeList::list(), FailedList::list()}}).
-%%
+%%--------------------------------------------------------------------
 %% @doc make table for storing index info of this table
 %%      returns list of nodes in which tables were created, 
 %%      and list of nodes which table creation failed
 %%      TODO: this return value make sense??
+%% @spec(create_table(DomainName::string(), TableName::string(), AttList::list()) ->
+%%           {ok, {NodeList::list(), FailedList::list()}}).
+%% @end
+%%--------------------------------------------------------------------
 create_table(DomainName, TableName, AttList) ->
     hm_table:create_table(DomainName, TableName, AttList).
 
-%% @spec(drop_table(DomainName::string(), TableName::string()) ->
-%%           {ok, {NodeList::list(), FailedList::list()}}).
-%%
+%%--------------------------------------------------------------------
 %% @doc drop index table
 %%      returns list of nodes in which tables were created, 
 %%      and list of nodes which table creation failed
 %%      TODO: this return value make sense??
+%% @spec(drop_table(DomainName::string(), TableName::string()) ->
+%%           {ok, {NodeList::list(), FailedList::list()}}).
+%% @end
+%%--------------------------------------------------------------------
 drop_table(DomainName, TableName) ->
     hm_table:drop_table(DomainName, TableName).
 
-
+%%--------------------------------------------------------------------
+%% @doc returns Table Id to access it, and field attributes
+%%      TODO: Tid should be known to users??
 %% @spec(get_table_info(DomainName::string(), TableName::string()) ->
 %%           {ok, Tid, AttList::list()} |
 %%           {error, no_node_available} | {error, no_table}
-%%
-%% @doc returns Table Id to access it, and field attributes
-%%      TODO: Tid should be known to users??
+%% @end
+%%--------------------------------------------------------------------
 get_table_info(DomainName, TableName) ->
     hm_table:get_table_info(DomainName, TableName).
 
-%% @spec(log_start() -> ok).
-%%
+%%--------------------------------------------------------------------
 %% @doc start logging for all nodes
+%% @spec(log_start() -> ok).
+%% @end
+%%--------------------------------------------------------------------
 log_start() ->
-    {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
+    {ok, NameList} = hm_name_server:get_list(get_name_list),
     log_start_in(NameList).
 
-%% @spec(log_stop() -> ok).
-%%
+%%--------------------------------------------------------------------
 %% @doc stop logging for all nodes
+%% @spec(log_stop() -> ok).
+%% @end
+%%--------------------------------------------------------------------
 log_stop() ->
-    {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
+    {ok, NameList} = hm_name_server:get_list(get_name_list),
     log_stop_in(NameList).
 
-%% ----------------------------------------------------------------------------
-%% Internal Functions
-%% ----------------------------------------------------------------------------
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
 log_start_in([]) -> ok;
 log_start_in([{_Name, NodeName}|NodeList]) ->
     Res = rpc:call(NodeName, hm_event_mgr, add_file_handler, []),
@@ -162,9 +195,9 @@ log_stop_in([{_Name, NodeName}|NameList]) ->
     end,
     log_stop_in(NameList).
 
-%% ----------------------------------------------------------------------------
-%% EUnit Test Functions
-%% ----------------------------------------------------------------------------
+%%%===================================================================
+%%% EUnit test functions
+%%%===================================================================
 
 rangeq_test_() -> 
     [

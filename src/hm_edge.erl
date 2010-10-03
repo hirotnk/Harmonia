@@ -9,15 +9,35 @@
 % WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 % License for the specific language governing permissions and limitations under
 % the License.
-
+%%%-------------------------------------------------------------------
+%%% @author Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%% @copyright (C) 2010, hiro
+%%% @doc I/F to start/stop Harmonia from outside of application
+%%%      (from shell, etc)
+%%% @end
+%%% Created :  2 Oct 2010 by Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%%-------------------------------------------------------------------
 -module(hm_edge).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
+-vsn('0.1').
+%% API
 -export([
         start/0,
         stop/0,
         stop/1
         ]).
 
+%%%===================================================================
+%%% API
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Starts the server
+%%
+%% @spec start() -> ok
+%% @end
+%%--------------------------------------------------------------------
 start() ->
     {ok, [[Nodename]]} = init:get_argument(sname),
     error_logger:logfile({open, "SYS_INFO_" ++ Nodename ++ ".log"}),
@@ -26,8 +46,10 @@ start() ->
         {error, _Msg} -> init:stop(1)
     end.
 
+stop([RootNode]) -> rpc:call(RootNode, hm_edge, stop, []).
+
 stop() ->
-    {ok, NameList} = gen_server:call({global, hm_name_server}, get_name_list),
+    {ok, NameList} = hm_name_server:get_list(),
     stop_in(NameList).
 stop_in([]) -> ok;
 stop_in([{_Name, NodeName}|NameList]) ->
@@ -44,5 +66,4 @@ stop_in([{_Name, NodeName}|NameList]) ->
     end,
     stop_in(NameList).
 
-stop([RootNode]) -> rpc:call(RootNode, hm_edge, stop, []).
 

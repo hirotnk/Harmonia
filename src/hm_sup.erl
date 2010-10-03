@@ -40,7 +40,7 @@ start_link(Env) ->
             Any ->
                 io:fwrite("ERR:~p\n", [Any])
         end,
-    {ok, {Name, NodeName}} = gen_server:call({global, ?name_server}, {register_name, {Name, NodeName}}),
+    {ok, {Name, NodeName}} = hm_name_server:register({Name, NodeName}),
     case hm_log_h_file:add() of
         ok -> ok;
         Err -> io:fwrite("ERR: log file handler add:[~p]~n", [Err])
