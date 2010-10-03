@@ -50,7 +50,8 @@
 get_successor_alive(State) when length(State#state.finger) > 0 ->
     {SuccName, SuccVector} = hd(State#state.finger),
     % check if the Succ is alive 
-    case is_alive(SuccName) of
+    BareName = list_to_atom(atom_to_list(SuccName) -- ?PROCESS_PREFIX),
+    case is_alive(BareName) of
         true -> {ok, {SuccName, SuccVector}};
         false -> {error, successor_dead}
     end;
@@ -83,16 +84,23 @@ get_first_fit_router([Candidate|NameList]) ->
 
 get_first_alive_entry([]) -> {error, none};
 get_first_alive_entry([{Name, _Vector} = FirstNode|NodeList]) ->
-    case is_alive(Name) of
+
+    BareName = list_to_atom(atom_to_list(Name) -- ?PROCESS_PREFIX),
+    case is_alive(BareName) of
         true  -> FirstNode;
         false ->
             get_first_alive_entry(NodeList)
     end.
 
-is_alive(NodeName) ->
-    case global:whereis_name(NodeName) of
-        undefined -> false;
-        _         -> true
+is_alive(BareName) ->
+    % 'foo', 'hm_router_foo', both type of name is available,
+    % but need to specify 'foo' type name in case it's dead
+    % to remove from name server
+    case global:whereis_name(BareName) of
+        undefined -> 
+            hm_name_server:unregister(BareName),
+            false;
+        _ -> true
     end.
 
 check_exist(_AppName, []) -> false;
@@ -118,8 +126,6 @@ replace_nth(N, Val, List) ->
     replace_nth_in(1, N, length(List), Val, List, []).
 
 check_pred_and_successor(State) ->
-    Name = State#state.node_name,
-
     % includes info about predecessor also
     case State#state.predecessor =:= nil of 
         true ->
@@ -128,14 +134,8 @@ check_pred_and_successor(State) ->
             Pred = pred_is_not_nil
     end,
     case length(State#state.finger) > 0 of
-        true ->
-            {SuccName, _} = hd(State#state.finger),
-            case Name =:= SuccName of 
-                true -> {succ_exists, true, Pred};
-                false -> {succ_exists, false, Pred}
-            end;
-        false ->
-            {no_succ_exists, false, Pred}
+        true  -> {succ_exists, Pred};
+        false -> {no_succ_exists, Pred}
     end.
 
 is_pred_nil(State) ->

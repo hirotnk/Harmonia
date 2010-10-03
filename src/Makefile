@@ -34,7 +34,6 @@ SOURCE = harmonia.erl \
 	hm_log_h_term.erl \
 	hm_misc.erl \
 	hm_name_server.erl \
-	hm_name_sup.erl \
 	hm_qp.erl \
 	hm_router.erl \
 	hm_stabilizer.erl \

@@ -34,6 +34,13 @@
 
 %% API
 -export([
+        check_pred/1,
+        get_predecessor/1,
+        stabilize/2,
+        copy_succlist/1,
+        fix_finger_set/4,
+        set_succlist/2,
+        find_successor/3,
         lookup/1, 
         lookup_with_succlist/1,
         name/1,
@@ -92,10 +99,43 @@ lookup_with_succlist(Key) ->
         gen_server:call({global, RegName}, {find_successor_with_succlist, KeyVector, nil}),
     {ok, SuccName, SuccList}.
 
+%%--------------------------------------------------------------------
+%% @spec(find_successor(RegName::atom(), NodeVector::integer(),
+%%                      Current::integer()) -> Successor).
+%% @doc this routine is mainly called by hm_stabilizer modle
+%% @end
+%%--------------------------------------------------------------------
+find_successor(RegName, NodeVector, Current) ->
+    gen_server:call({global, hm_router:name(RegName)}, {find_successor, NodeVector, Current}).
+
 state_info(RegName) ->
     gen_server:call({global, name(RegName)}, state_info).
 state_info(RegName, NodeName) ->
     gen_server:call({name(RegName), NodeName}, state_info).
+
+check_pred(RegName) ->
+    gen_server:cast({global, hm_router:name(RegName)}, check_pred).
+
+get_predecessor(SuccName) ->
+    gen_server:call({global, SuccName}, get_predecessor).
+
+copy_succlist(SuccName) ->
+    gen_server:call({global, SuccName}, copy_succlist).
+
+set_succlist(MyNodeName, NewSuccList) ->
+    gen_server:cast({global, MyNodeName}, {set_succlist, NewSuccList}).
+
+stabilize(RegName, PredOfSucc) ->
+    gen_server:cast({global, hm_router:name(RegName)}, {stabilize, PredOfSucc}).
+
+%%--------------------------------------------------------------------
+%% @spec(fix_finger_set(RegName::atom(), Current::integer(), NewSucc, Finger) -> ok).
+%% @doc replace nth entry in finger list
+%% @end
+%%--------------------------------------------------------------------
+fix_finger_set(RegName, Current, NewSucc, Finger) ->
+    gen_server:cast({global, hm_router:name(RegName)}, {fix_finger, Current, NewSucc, Finger}),
+    ok.
 
 name(Name) -> list_to_atom("hm_router_" ++ atom_to_list(Name)).
 
@@ -180,10 +220,10 @@ handle_cast({notify, NodeInfo}, State) ->
     {noreply, notify(NodeInfo, State)};
 
 handle_cast({stabilize, PredOfSucc}, State) ->
-    {noreply, stabilize(PredOfSucc, State)};
+    {noreply, stabilize_in(PredOfSucc, State)};
 
 handle_cast(check_pred, State) ->
-    {noreply, check_pred(State)}.
+    {noreply, check_pred_in(State)}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -294,7 +334,13 @@ find_successor_handle_call_in(Handlecall_Key, NodeVector, CurrentFix, From, Stat
 %% @end
 %%--------------------------------------------------------------------
 find_successor_in(NodeVector, State) ->
-    {Succ, SuccVector} = hd(State#state.finger),
+    {Succ, SuccVector} =
+        case hm_misc:get_first_alive_entry(State#state.finger) of
+            {error, none} -> 
+                {State#state.node_name, State#state.node_vector};
+            {TmpSucc, TmpSuccVector} -> 
+                {TmpSucc, TmpSuccVector}
+        end,
     case is_between2(State#state.node_vector, NodeVector, SuccVector) of
         % my successor is in charge of the node vector
         true  -> 
@@ -366,14 +412,19 @@ closest_predecessor_in(LocalVector, NodeVector, FingerList) ->
     {FingerName, FingerVector} = hd(FingerList),
     case is_between(LocalVector, FingerVector, NodeVector) of
         true ->
-            {FingerName, FingerVector};
+            BareName = list_to_atom( atom_to_list(FingerName) -- ?PROCESS_PREFIX ),
+            case hm_misc:is_alive(BareName) of
+                true -> {FingerName, FingerVector};
+                false ->
+                    closest_predecessor_in(LocalVector, NodeVector, tl(FingerList))
+            end;
         false ->
             closest_predecessor_in(LocalVector, NodeVector, tl(FingerList))
     end.
 
 %%--------------------------------------------------------------------
 %% @doc condition: (From, To) = {Target | From < Target < To}
-%%  used by closest_preceding_node algorithm
+%%  used by closest_preceding_node, notify algorithm
 %% @end
 %%--------------------------------------------------------------------
 is_between(From, _Target, To) when From =:= To -> true;
@@ -429,22 +480,57 @@ find_successor_ask_other(Key, NodeVector, From, State) ->
             gen_server:cast({global, InqNode}, {find_successor_ask_other, Key, NodeVector, From})
     end.
 
+%%--------------------------------------------------------------------
+%% @doc this routine is called periodically from hm_stabilizer
+%%      to maintail predecessor 
+%%
+%% algorithm: refer to [1]:
+%%
+%% // n' thinks it might be my predecessor
+%% n.notify(n')
+%%   if(predecessor is nil or n' in (predecessor, n))
+%%     predecessor = n'
+%% 
+%% @end
+%%--------------------------------------------------------------------
 notify(NodeInfo, State) -> 
     case hm_misc:check_pred_and_successor(State) of
-        {succ_exists, true, _}                -> State#state{predecessor = NodeInfo};
-        {succ_exists, false, pred_is_nil}     -> State#state{predecessor = NodeInfo};
-        {succ_exists, false, pred_is_not_nil} -> 
+        % predecessor == nil
+        {succ_exists, pred_is_nil}     -> State#state{predecessor = NodeInfo};
+
+        % predecessor == other node
+        {succ_exists, pred_is_not_nil} -> 
             {_, PredVector} = State#state.predecessor,
             {_, NodeVector} = NodeInfo,
             case is_between(PredVector, NodeVector, State#state.node_vector) of
                 true  -> State#state{predecessor = NodeInfo};
                 false -> State
             end;
-        {no_succ_exits, false, _} -> State
+
+        % finger table lentgh == 0, possible bug
+        {no_succ_exits, _}               -> State
+
     end.
 
-stabilize(nil, State) -> State;
-stabilize({PredName, PredVector}, State) ->
+%%--------------------------------------------------------------------
+%% @doc this routine is called periodically from hm_stabilizer
+%%      to maintain its successor by checking its current successor
+%%      that if it is the immediate predecessor of it
+%%
+%% algorithm: refer to [1]:
+%%
+%% // callded periodically, veries n's immediate successor,
+%% // and tells the successor about n
+%% n.stabilize()
+%%   x = successor.predecessor,
+%%   if( x in (n, successor))
+%%     successor = x
+%%   successor.notify(n)
+%% 
+%% @end
+%%--------------------------------------------------------------------
+stabilize_in(nil, State) -> State;
+stabilize_in({PredName, PredVector}, State) ->
     % check if new successor exists
     {_SuccName, SuccVector} = get_successor(State),
     case is_between(State#state.node_vector, PredVector, SuccVector) of 
@@ -462,12 +548,13 @@ get_successor(State) ->
                      % if it is, I let it clash.
     end.
 
-check_pred(State) when State#state.predecessor =:= nil ->
+check_pred_in(State) when State#state.predecessor =:= nil ->
     State;
-check_pred(State) ->
+check_pred_in(State) ->
     % Check predecessor and set nil if failed
     {PredName, _PredVector} = State#state.predecessor,
-    case hm_misc:is_alive(PredName) of 
+    BareName = list_to_atom( atom_to_list(PredName) -- ?PROCESS_PREFIX ),
+    case hm_misc:is_alive(BareName) of 
         true  -> State;
         false -> State#state{predecessor = nil}
     end.

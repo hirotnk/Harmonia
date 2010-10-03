@@ -27,6 +27,7 @@
          get_list/0,
          name/1,
          register/1,
+         unregister/1,
          start_link/0,
          stop/0
         ]).
@@ -55,6 +56,9 @@ stop() ->
 
 register({Name, NodeName}) ->
     gen_server:call({global, ?name_server}, {register_name, {Name, NodeName}}).
+
+unregister(Name) ->
+    gen_server:call({global, ?name_server}, {unregister_name, {name, Name}}).
 
 get_list() ->
     gen_server:call({global, ?name_server}, get_name_list).
@@ -125,7 +129,10 @@ handle_call(get_name_list, _From, State) ->
     {reply, {ok, State}, State};
 
 handle_call({register_name, {RegName, NodeName}}, _From, State) ->
-    {reply, {ok, {RegName, NodeName}}, [{RegName, NodeName}|State]}.
+    {reply, {ok, {RegName, NodeName}}, [{RegName, NodeName}|State]};
+
+handle_call({unregister_name, {name, RegName}}, _From, State) ->
+    {reply, ok, lists:keydelete(RegName, 1, State)}.
 
 %%--------------------------------------------------------------------
 %% @private

@@ -536,9 +536,10 @@ gather_delete(Cnt, Pid, Ref, Acc) ->
     end.
 
 lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) ->
-    DataNodeName = name(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
+    BareName = list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
+    DataNodeName = name(BareName),
 
-    case hm_misc:is_alive(DataNodeName) of
+    case hm_misc:is_alive(BareName) of
         false -> 
             ?warning_p("DataNode Not Alive : Node:[~p].~n", none, [DataNodeName]),
             LoopPid ! {error, Ref, node_not_alive};
@@ -552,9 +553,10 @@ lookup_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) -
     end.
 
 delete_data_table_solo(NodeName, DTNameTable, FlistModified, MS, LoopPid, Ref) ->
-    DataNodeName = name(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
+    BareName = list_to_atom(atom_to_list(NodeName) -- ?PROCESS_PREFIX),
+    DataNodeName = name(BareName),
 
-    case hm_misc:is_alive(DataNodeName) of
+    case hm_misc:is_alive(BareName) of
         false -> 
             ?warning_p("DataNode Not Alive : Node:[~p].~n", none, [DataNodeName]),
             LoopPid ! {error, Ref, node_not_alive};

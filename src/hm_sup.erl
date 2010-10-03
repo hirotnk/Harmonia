@@ -9,21 +9,41 @@
 % WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 % License for the specific language governing permissions and limitations under
 % the License.
-
+%%%-------------------------------------------------------------------
+%%% @author Yoshihiro TANAKA <hirotnkg@gmail.com>
+%%% @copyright (C) 2010, Yoshihiro TANAKA
+%%% @doc
+%%%  Harmonia supervisor
+%%% @end
+%%% Created :  2 Oct 2010 by Yoshihiro <hirotnkg@gmail.com>
+%%%-------------------------------------------------------------------
 -module(hm_sup).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -behaviour(supervisor).
+%% API
 -export([
         create/2,
         join/3,
         start_link/1,
         stop/1
         ]).
+%% Supervisor callbacks
 -export([init/1]).
 
 -include("harmonia.hrl").
 -define(connect_try, 5).
 
+%%%===================================================================
+%%% API functions
+%%%===================================================================
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Starts the supervisor
+%%
+%% @spec start_link() -> {ok, Pid} | ignore | {error, Error}
+%% @end
+%%--------------------------------------------------------------------
 start_link(Env) -> 
     Name = proplists:get_value(name, Env),
     Root = proplists:get_value(root, Env),
@@ -48,11 +68,28 @@ start_link(Env) ->
     io:fwrite("start Pid:[~p]~n", [Pid]),
     {ok, Pid}.
 
-create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
-join(Name, RootName, Env) -> supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}).
-
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
+%% Whenever a supervisor is started using supervisor:start_link/[2,3],
+%% this function is called by the new process to find out about
+%% restart strategy, maximum restart frequency and child
+%% specifications.
+%%
+%% @spec init(Args) -> {ok, {SupFlags, [ChildSpec]}} |
+%%                     ignore |
+%%                     {error, Reason}
+%% @end
+%%--------------------------------------------------------------------
 init({{create, Name}          = Arg, Env}) -> create_children(create, Arg, Name, Env);
 init({{join, Name, _RootName} = Arg, Env}) -> create_children(join,   Arg, Name, Env).
+
+%%%===================================================================
+%%% Internal functions
+%%%===================================================================
+create(Name, Env)         -> supervisor:start_link({global, Name}, ?MODULE, {{create, Name}, Env}).
+
+join(Name, RootName, Env) -> supervisor:start_link({global, Name}, ?MODULE, {{join, Name, RootName}, Env}).
 
 create_children(Type, Arg, Name, Env) -> 
     ServerListTmp = 
@@ -91,8 +128,6 @@ child(Name, Module, Arg, Type) ->
 
 stop(Name) -> exit(global:whereis_name(Name), kill).
 
-% name(RegName) -> list_to_atom(atom_to_list(?MODULE) ++ "_" ++ atom_to_list(RegName)).
-
 connect_node(Node) ->
     connect_node_in(Node, ?connect_try).
 
@@ -115,4 +150,3 @@ connect_node_in(Node, Cnt) ->
 %%                                             [], supervisor)).
 %% stop_hm_name(RegName) -> 
 %%     supervisor:terminate_child(name(RegName), ?name_server).
-

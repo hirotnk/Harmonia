@@ -163,7 +163,7 @@ get_table_info(DomainName, TableName) ->
 %% @end
 %%--------------------------------------------------------------------
 log_start() ->
-    {ok, NameList} = hm_name_server:get_list(get_name_list),
+    {ok, NameList} = hm_name_server:get_list(),
     log_start_in(NameList).
 
 %%--------------------------------------------------------------------
@@ -172,7 +172,7 @@ log_start() ->
 %% @end
 %%--------------------------------------------------------------------
 log_stop() ->
-    {ok, NameList} = hm_name_server:get_list(get_name_list),
+    {ok, NameList} = hm_name_server:get_list(),
     log_stop_in(NameList).
 
 %%%===================================================================
