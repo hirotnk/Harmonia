@@ -17,14 +17,13 @@
 %%%
 %%%      Sts : Exp | ('or' Exp)*
 %%%      Exp : Factor ('and' Factor)*
-%%%      Factor : Term ('=='|'!='|'<='|'>='|'>'|'<'  Term|Number|String )*
+%%%      Factor : Fname ('=='|'!='|'<='|'>='|'>'|'<')  (Atom|Number|String )
 %%%              | '(' Sts ')'
-%%%      Term : Tbl.Fld
-%%%      Tbl : StringNum
-%%%      Fld : StringNum
+%%%      Fname : StringNum
 %%%      StringNum : 'a-Z' ('a-Z_'|'0-9')*
-%%%      Number : '0-9' ('0-9)*
-%%%      String : 
+%%%      Number : '0-9' ('0-9')*
+%%%      String : '[' ('a-Z_'|'0-9')* ']'
+%%%      Atom : ''' ('a-Z_'|'0-9')* '''
 %%% @end
 %%% Created :  2 Oct 2010 by Yoshihiro TANAKA <hirotnkg@gmail.com>
 %%%-------------------------------------------------------------------
@@ -38,6 +37,7 @@
         scan/2,
         scan/3
         ]).
+-include_lib("eunit/include/eunit.hrl").
 
 -define(CHARACTERS, "abcdefghijklmnopqrstuvwxyzABCDEFGHJKLMNOPQRSTUVWXYZ_").
 -define(NUMBERS, "0123456789").
@@ -73,6 +73,16 @@ scan([$'|Query], Cur, Tokens) ->
     scan(Query, [{atom, []}], Tokens++Cur);
 scan([Char|Query], [{atom,Cur}], Tokens) ->
     scan(Query, [{atom, [Char|Cur]}], Tokens);
+
+% scan string
+scan([$[|Query], [], Tokens) ->
+    scan(Query, [{string, []}], Tokens);
+scan([$]|Query], [{string, Cur}], Tokens) ->
+    scan(Query, [], Tokens++[{string, lists:reverse(Cur)}]);
+scan([$[|Query], Cur, Tokens) ->
+    scan(Query, [{string, []}], Tokens++Cur);
+scan([Char|Query], [{string,Cur}], Tokens) ->
+    scan(Query, [{string, [Char|Cur]}], Tokens);
 
 
 % general cases
@@ -253,5 +263,19 @@ parse_term([{identifier,Val}|Tokens], []) ->
     {Val, Tokens};
 parse_term([{atom,Val}|Tokens], []) -> 
     {Val, Tokens};
+parse_term([{string,Val}|Tokens], []) -> 
+    {Val, Tokens};
 parse_term([{const,Val}|Tokens], []) -> 
     {{const, Val}, Tokens}.
+
+%%%===================================================================
+%%% EUnit test functions
+%%%===================================================================
+
+rangeq_test_() -> 
+    [
+        ?_assertEqual({ok, [[xxx,32,textfile1]]}   ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 32")),
+        ?_assertEqual({ok, [[yyy,150,textfile2]]}  ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 150")),
+        ?_assertEqual({ok, [[zzz,3000,textfile3]]} ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 3000")),
+        ?_assertEqual({ok, [[aaa,9000,textfile4]]} ,hm_cli:get("Domain1", "Tbl2", "Fld2 == 9000"))
+    ].
