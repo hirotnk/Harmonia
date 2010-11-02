@@ -9,7 +9,6 @@
 % WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.  See the
 % License for the specific language governing permissions and limitations under
 % the License.
-
 %%%-------------------------------------------------------------------
 %%% File    : hm_cache_mgr.erl
 %%% Description : periodically maintain local cache with LRU manner
@@ -51,7 +50,6 @@
 %% gen_fsm callbacks
 -export([init/1, cache_cleanup_lru/2,handle_event/3,
          handle_sync_event/4, handle_info/3, terminate/3, code_change/4]).
-
 
 -include("harmonia.hrl").
 -include_lib("include/ms_transform.hrl").

@@ -16,7 +16,6 @@
 %%% @end
 %%% Created :  2 Oct 2010 by Yoshihiro TANAKA <hirotnkg@gmail.com>
 %%%-------------------------------------------------------------------
-
 -module(hm_event_mgr).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -vsn('0.1').

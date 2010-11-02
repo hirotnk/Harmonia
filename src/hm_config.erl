@@ -77,6 +77,21 @@ init(Env) -> {ok, Env}.
 %%--------------------------------------------------------------------
 %% @private
 %% @doc
+%% This function is called by a gen_server when it is about to
+%% terminate. It should be the opposite of Module:init/1 and do any
+%% necessary cleaning up. When it returns, the gen_server terminates
+%% with Reason. The return value is ignored.
+%%
+%% @spec terminate(Reason, State) -> void()
+%% @end
+%%--------------------------------------------------------------------
+terminate(Reason, State) -> 
+    ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
+    ok.
+
+%%--------------------------------------------------------------------
+%% @private
+%% @doc
 %% Handling cast messages
 %%
 %% @spec handle_cast(Msg, State) -> {noreply, State} |
@@ -121,21 +136,6 @@ handle_call({get, Key}, _From, Env) ->
 %%--------------------------------------------------------------------
 handle_info(_Info, State) ->
     {noreply, State}.
-
-%%--------------------------------------------------------------------
-%% @private
-%% @doc
-%% This function is called by a gen_server when it is about to
-%% terminate. It should be the opposite of Module:init/1 and do any
-%% necessary cleaning up. When it returns, the gen_server terminates
-%% with Reason. The return value is ignored.
-%%
-%% @spec terminate(Reason, State) -> void()
-%% @end
-%%--------------------------------------------------------------------
-terminate(Reason, State) -> 
-    ?info_p("terminate:Reason:[~p] State:[~p]~n", none, [Reason, State]),
-    ok.
 
 %%--------------------------------------------------------------------
 %% @private

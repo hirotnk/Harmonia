@@ -15,15 +15,18 @@
 %%% @doc query parser for ets
 %%%      convert query condition into match specification of ets
 %%%
-%%%      Sts : Exp | ('or' Exp)*
-%%%      Exp : Factor ('and' Factor)*
-%%%      Factor : Fname ('=='|'!='|'<='|'>='|'>'|'<')  (Atom|Number|String )
-%%%              | '(' Sts ')'
-%%%      Fname : StringNum
-%%%      StringNum : 'a-Z' ('a-Z_'|'0-9')*
-%%%      Number : '0-9' ('0-9')*
-%%%      String : '[' ('a-Z_'|'0-9')* ']'
-%%%      Atom : ''' ('a-Z_'|'0-9')* '''
+%%%      Sts    = Exp , {'or' Exp};
+%%%      Exp    = Factor , {'and' Factor};
+%%%      Factor = Fname RelOp  Term | '(' , Sts , ')';
+%%%      Fname  = Char , {Char|Number};
+%%%      Term   = Atom|Number|String;
+%%%      RelOp  = '=='|'!='|'<='|'>='|'>'|'<';
+%%%      Number = Digit , {Digit};
+%%%      String = '[' , {Char|Digit} , ']';
+%%%      Atom   = ''' , {Char|Digit} , ''';
+%%%      Digit  = '0-9';
+%%%      Char   = 'a-Z';
+%%%
 %%% @end
 %%% Created :  2 Oct 2010 by Yoshihiro TANAKA <hirotnkg@gmail.com>
 %%%-------------------------------------------------------------------

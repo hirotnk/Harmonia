@@ -37,7 +37,8 @@
         start_link/1,
         stop/0,
         stop/1,
-        store/2
+        store/2,
+        get_data_count/1 % only for test purpose
         ]).
 -export([
         gather_get/4,
@@ -160,6 +161,15 @@ rdel(DomainName, TableName, Cond) ->
     del_in(DomainName, TableName, Cond).
 
 %%--------------------------------------------------------------------
+%% @doc Current Data counter
+%% @spec(get_data_count(Name) -> integer())
+%%
+%% @end
+%%--------------------------------------------------------------------
+get_data_count(Name) ->
+    gen_server:call({global, name(Name)}, get_current_data_count).
+
+%%--------------------------------------------------------------------
 %% @doc return node specific module name
 %% @spec
 %% @end
@@ -186,7 +196,7 @@ name(Name) ->
 %%--------------------------------------------------------------------
 init(RegName) ->
     ets:new(?hm_global_table, [bag, public, named_table]),
-    {ok, {RegName, [?hm_global_table]}}.
+    {ok, {RegName, [?hm_global_table], 0}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -230,22 +240,25 @@ handle_cast(stop, State) ->
 %%                                   {stop, Reason, State}
 %% @end
 %%--------------------------------------------------------------------
-handle_call({register_table, TableName}, _From, {RegName, TableList}) ->
-    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
-    {reply, {ok, register_table, TableName}, {RegName, [TableName|TableList]}};
+handle_call(get_current_data_count, _From, {RegName, TableList, Cnt}) ->
+    {reply, {ok, Cnt}, {RegName, TableList, Cnt}};
 
-handle_call({unregister_table, TableName}, _From, {RegName, TableList}) ->
+handle_call({register_table, TableName}, _From, {RegName, TableList, Cnt}) ->
+    ?info_p("register_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
+    {reply, {ok, register_table, TableName}, {RegName, [TableName|TableList], Cnt}};
+
+handle_call({unregister_table, TableName}, _From, {RegName, TableList, Cnt}) ->
     ?info_p("unregister_table info:[~p] new table:[~p].~n", RegName, [TableList, TableName]),
     NewTableList = TableList -- [TableName],
-    {reply, {ok, unregister_table}, {RegName, NewTableList}};
+    {reply, {ok, unregister_table}, {RegName, NewTableList, Cnt}};
 
-handle_call({get_table_info, DTName}, _From, {_RegName, TableList}=State) ->
+handle_call({get_table_info, DTName}, _From, {_RegName, TableList, _Cnt}=State) ->
     case lists:member(DTName, TableList) of
         true -> {reply, {ok, DTName}, State};
         false -> {reply, {error, no_table}, State}
     end;
 
-handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+handle_call({select_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList, _Cnt}=State) ->
     % ets:select(Tid, [{{'$1',['$2','$3','$4']},[{'and',{'==','$2',yyy},{'==', '$1', 'Domain1Tbl2'}}],['$$']}]).
     Reply = ets:select(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
     {reply, {ok, lists:usort(Reply)}, State};
@@ -254,38 +267,38 @@ handle_call({select_table, DTName, FlistModified, MS}, _From, State) ->
     Reply = ets:select(DTName, [{{'$1', FlistModified},MS,['$$']}]),
     {reply, {ok, lists:usort(Reply)}, State};
 
-handle_call({select_delete_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList}=State) ->
+handle_call({select_delete_table, ?hm_global_table, DTName, FlistModified, MS}, _From, {_RegName, _TableList, _Cnt}=State) ->
     NumDeleted = ets:select_delete(?hm_global_table, [{{'$1',FlistModified},[{'and',{'==','$1',DTName},MS}], ['$_']}]),
     {reply, {ok, NumDeleted}, State};
-handle_call({select_delete_table, DTName, FlistModified, MS}, _From, State) ->
-    NumDeleted = ets:select_delete(DTName, [{{'$1', FlistModified},MS,['$$']}]),
-    {reply, {ok, NumDeleted}, State};
+handle_call({select_delete_table, DTName, FlistModified, MS}, _From, {RegName, TableList, Cnt}) ->
+    NumDeleted = ets:select_delete(DTName, [{{'$1', FlistModified}, MS, ['$$']}]),
+    {reply, {ok, NumDeleted}, {RegName, TableList, Cnt - 1}};
 
-handle_call({store, TableName, Key, Value}, _From, {RegName, TableList}) ->
+handle_call({store, TableName, Key, Value}, _From, {RegName, TableList, Cnt}) ->
     ?info_p("store:TableName:[~p] Key:[~p] Value:[~p] TableList:[~p].~n", store, [TableName, Key, Value, TableList]),
     case lists:member(TableName, TableList) of 
         false -> 
-            {reply, {error, {store, no_table_found}}, {RegName, TableList}};
+            {reply, {error, {store, no_table_found}}, {RegName, TableList, Cnt}};
         true ->
             Ret = (catch ets:insert(TableName, {Key, Value})),
             case Ret of
                 true ->
-                    {reply, {ok, insert}, {RegName, TableList}};
+                    {reply, {ok, insert}, {RegName, TableList, Cnt + 1}};
                 Any ->
                     {reply, 
                      {error, {store, exception, TableName, {Key, Value}, Any}}, 
-                     {RegName, TableList}
+                     {RegName, TableList, Cnt}
                     }
             end
     end;
 
-handle_call({get, Key}, _From, {RegName, TableList}) ->
+handle_call({get, Key}, _From, {RegName, TableList, Cnt}) ->
     Reply = ets:lookup(?hm_global_table, Key),
-    {reply, Reply, {RegName, TableList}};
+    {reply, Reply, {RegName, TableList, Cnt}};
 
-handle_call({delete, Key}, _From, {RegName, TableList}) ->
+handle_call({delete, Key}, _From, {RegName, TableList, Cnt}) ->
     ets:delete(?hm_global_table, Key),
-    {reply, {ok, delete, Key}, {RegName, TableList}}.
+    {reply, {ok, delete, Key}, {RegName, TableList, Cnt - 1}}.
 
 %%--------------------------------------------------------------------
 %% @private
@@ -661,7 +674,7 @@ calc_key_from_key_data(DTName, KVList, AttList) ->
     {ok, KeyList} = 
         extract_kv_tuples(KVList, AttList, true),
 
-    % the value of the key fields must be list/string()/atom
+    % the value of the key fields must be list/atom/integer
     Key = lists:foldl(fun
                         ({_, Data},AccIn) when is_list(Data) -> 
                                 Data ++ AccIn;

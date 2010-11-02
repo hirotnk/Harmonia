@@ -32,7 +32,8 @@
         log_stop/0,
         rget/3,
         rstore/3,
-        store/2
+        store/2,
+        get_data_count/1 % only for test purpose
         ]).
 -include_lib("eunit/include/eunit.hrl").
 
@@ -174,6 +175,14 @@ log_start() ->
 log_stop() ->
     {ok, NameList} = hm_name_server:get_list(),
     log_stop_in(NameList).
+
+%%--------------------------------------------------------------------
+%% @doc get current data count
+%% @spec(get_data_count() -> integer).
+%% @end
+%%--------------------------------------------------------------------
+get_data_count(Name) ->
+    hm_ds:get_data_count(Name).
 
 %%%===================================================================
 %%% Internal functions
