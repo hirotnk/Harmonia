@@ -400,9 +400,9 @@ del_in(DomainName, TableName, Cond) ->
 
 store_in(DomainName, TableName, KVList) ->
 
-    dynomite_prof:start_prof(make_request_list_from_dt),
+    %dynomite_prof:start_prof(make_request_list_from_dt),
     NodeList = hm_misc:make_request_list_from_dt(DomainName, TableName),
-    dynomite_prof:stop_prof(make_request_list_from_dt),
+    %dynomite_prof:stop_prof(make_request_list_from_dt),
 
     {IndexTableNode, _} = hd(NodeList), % index record is stored on this node in DTName table
     case hm_table:get_table_info(DomainName, TableName, NodeList) of
