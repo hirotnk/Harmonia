@@ -21,7 +21,8 @@
 -define(max_finger, ?key_bit_length). 
 
 % Length of successor list
--define(succ_list_len, (?key_bit_length bsr 1)). 
+%-define(succ_list_len, (?key_bit_length bsr 1)). 
+-define(succ_list_len, 4). 
 
 % max key value
 -define(max_key_value, ((1 bsl ?key_bit_length) - 1)).
