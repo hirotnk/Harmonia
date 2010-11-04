@@ -70,15 +70,16 @@ get_node() ->
 get_rand_procname() ->
     % bypassing get_name_list API for performance
     Candidates =
-        case get() of
-            [] -> 
+        case get(router_names) of
+            undefined -> 
                 NameList = global:registered_names(),
                 {ok, RouterList} = get_first_fit_router(NameList, []), % clash, if error.
-                put(1, RouterList),
+                put(router_names, RouterList),
                 RouterList;
-            [{1,RouterList}] -> RouterList
+            RouterList -> 
+                RouterList
         end,
-    Name = random:uniform(length(Candidates), Candidates),
+    Name = lists:nth(random:uniform(length(Candidates)), Candidates),
     {ok, Name}.
 
 get_first_fit_router([], Candidates) -> {ok, Candidates};
