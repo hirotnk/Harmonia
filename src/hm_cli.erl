@@ -121,7 +121,7 @@ rget(DomainName, TableName, Cond) ->
 %% @end
 %%--------------------------------------------------------------------
 get_node_names() ->
-    hm_name_server:get_list(get_name_list).
+    hm_name_server:get_list().
 
 %%--------------------------------------------------------------------
 %% @doc make table for storing index info of this table
