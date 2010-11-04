@@ -28,7 +28,6 @@
         del_dup/1,
         get_digest/1,
         get_first_alive_entry/1,
-        get_first_fit_router/1,
         get_node/0,
         get_rand_procname/0,
         get_successor_alive/1,
@@ -70,16 +69,25 @@ get_node() ->
 
 get_rand_procname() ->
     % bypassing get_name_list API for performance
-    NameList = global:registered_names(), 
-    {ok, Name} = get_first_fit_router(NameList), % clash, if error.
+    Candidates =
+        case get() of
+            [] -> 
+                NameList = global:registered_names(),
+                {ok, RouterList} = get_first_fit_router(NameList, []), % clash, if error.
+                put(1, RouterList),
+                RouterList;
+            [{1,RouterList}] -> RouterList
+        end,
+    Name = random:uniform(length(Candidates), Candidates),
     {ok, Name}.
 
-get_first_fit_router([]) -> error;
-get_first_fit_router([Candidate|NameList]) ->
+get_first_fit_router([], Candidates) -> {ok, Candidates};
+get_first_fit_router([Candidate|NameList], Candidates) ->
     case lists:prefix("hm_router_", atom_to_list(Candidate)) of
-        true -> {ok, Candidate};
+        true ->
+            get_first_fit_router(NameList, [Candidate | Candidates]);
         false ->
-            get_first_fit_router(NameList)
+            get_first_fit_router(NameList, Candidates)
     end.
 
 get_first_alive_entry([]) -> {error, none};
