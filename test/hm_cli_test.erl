@@ -38,7 +38,11 @@
         test_all/0,
         test_all/1,
         test_comp_get/1,
-        test_perf/1
+        test_perf/1,
+        thread_test/1,
+        thread_rget_test/1,
+        thread_rget_gather/3,
+        thread_rget_solo/4
         ]).
 -define(microsec, (1000*1000)).
 
@@ -409,6 +413,39 @@ rangeq_test5() ->
     {ok, RowList7} = hm_cli:rget(D, T, Q7),
     lists:foreach(fun([M,N,_O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
+
+
+thread_test(List) ->
+    {Time, _} = timer:tc(?MODULE, thread_rget_test, [List]),
+    io:format("[~20.10f] sec\n", [Time/?microsec]).
+
+thread_rget_test(List) ->
+    Ref = make_ref(),
+    global:register_name(thread_rget_gather, spawn(?MODULE, thread_rget_gather, [Ref, length(List), self()])),
+    spawn_all_rget_threads(List, thread_rget_gather, Ref),
+    receive
+        {ok, thread_rget_done} -> ok
+    end.
+
+thread_rget_gather(_Ref, 0, Pid) -> Pid ! {ok, thread_rget_done};
+thread_rget_gather(Ref, N, Pid) -> 
+    receive
+        {ok, Ref} ->
+            thread_rget_gather(Ref, N-1, Pid)
+    end.
+
+spawn_all_rget_threads([], _Name, _Ref) -> ok;
+spawn_all_rget_threads([{Node, Start, End} |List], Name, Ref) ->
+    spawn(Node, ?MODULE, thread_rget_solo, [Start, End, Name, Ref]),
+    spawn_all_rget_threads(List, Name, Ref).
+
+
+thread_rget_solo(Start, End, Name, Ref) ->
+    ok = rget(Start, End),
+    global:send(Name, {ok, Ref}),
+    ok.
+
+
 
 %% ----------------------------------------------------------------------------
 %% Internal Functions
