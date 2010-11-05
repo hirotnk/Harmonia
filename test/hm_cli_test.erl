@@ -42,7 +42,7 @@
         thread_test/1,
         thread_rget_test/1,
         thread_rget_gather/3,
-        thread_rget_solo/4
+        thread_rget_solo/5
         ]).
 -define(microsec, (1000*1000)).
 
@@ -430,19 +430,20 @@ thread_rget_test(List) ->
 thread_rget_gather(_Ref, 0, Pid) -> Pid ! {ok, thread_rget_done};
 thread_rget_gather(Ref, N, Pid) -> 
     receive
-        {ok, Ref} ->
+        {ok, Ref, Node} ->
+            io:format("got ~p\n", [Node]),
             thread_rget_gather(Ref, N-1, Pid)
     end.
 
 spawn_all_rget_threads([], _Name, _Ref) -> ok;
 spawn_all_rget_threads([{Node, Start, End} |List], Name, Ref) ->
-    spawn(Node, ?MODULE, thread_rget_solo, [Start, End, Name, Ref]),
+    spawn(Node, ?MODULE, thread_rget_solo, [Start, End, Name, Ref, Node]),
     spawn_all_rget_threads(List, Name, Ref).
 
 
-thread_rget_solo(Start, End, Name, Ref) ->
+thread_rget_solo(Start, End, Name, Ref, Node) ->
     ok = rget(Start, End),
-    global:send(Name, {ok, Ref}),
+    global:send(Name, {ok, Ref, Node}),
     ok.
 
 
