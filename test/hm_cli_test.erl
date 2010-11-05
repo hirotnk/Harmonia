@@ -40,7 +40,7 @@
         test_comp_get/1,
         test_perf/1,
         thread_test/1,
-        thread_rget_test/1,
+        spawn_all_rget_threads/1,
         thread_rget_solo/3
         ]).
 -define(microsec, (1000*1000)).
@@ -414,22 +414,20 @@ rangeq_test5() ->
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 
 
-thread_test(List) ->
-    {Time, _} = timer:tc(?MODULE, thread_rget_test, [List]),
-    io:format("[~20.10f] sec\n", [Time/?microsec]).
+thread_test([]) -> ok;
+thread_test([{Node, Start, End} | List]) ->
+    rpc:call(Node, ?MODULE, spawn_all_rget_threads, [{Node, Start, End}]),
+    thread_test(List).
 
-thread_rget_test(List) ->
-    spawn_all_rget_threads(List).
-
-spawn_all_rget_threads([]) -> ok;
-spawn_all_rget_threads([{Node, Start, End} |List]) ->
-    spawn(Node, ?MODULE, thread_rget_solo, [Start, End, Node]),
-    spawn_all_rget_threads(List).
-
+spawn_all_rget_threads({Node, Start, End}) ->
+    spawn(?MODULE, thread_rget_solo, [Start, End, Node]).
 
 thread_rget_solo(Start, End, Node) ->
+    {ok, S} = file:open(atom_to_list(Node) ++ ".dat", write),
+    io:format(S, "~p : ~p~n", [now(), time()]),
     {Time, _} = timer:tc(?MODULE, rget, [Start, End]),
-    io:format("Node:[~p] Time:[~20.10f] sec\n", [Node, Time/?microsec]),
+    io:format(S, "Node:[~p] Range:[~p to ~p] Time:[~20.10f] sec\n", [Node, Start, End, Time/?microsec]),
+    file:close(S),
     ok.
 
 
