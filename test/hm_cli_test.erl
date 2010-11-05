@@ -36,6 +36,8 @@
         rget_test_all/1,
         rstore/1,
         store/1,
+        store_short/1,
+        store_long/1,
         test_all/0,
         test_all/1,
         test_comp_get/1,
@@ -206,6 +208,12 @@ rstore_in_short(Len, Domain, Tbl, [Fld1,Fld2]) ->
     hm_cli:rstore(Domain, Tbl, [{Fld1, Len},{Fld2, "012345678901234567890123456789"}]),
     rstore_in_short(Len - 1, Domain, Tbl, [Fld1,Fld2]).
 
+store_short(0) -> ok;
+store_short(Len)  ->
+    hm_cli:store(Len, "012345678901234567890123456789"),
+    store_short(Len-1).
+
+
 
 rstore_long(Len) ->
     FldList = ["Fld1","Fld2","Fld3","Fld4"],
@@ -218,6 +226,12 @@ rstore_in_long(Len, Domain, Tbl, [Fld1,Fld2,Fld3,Fld4]) ->
                                 {Fld3, "0123456789"},
                                 {Fld4, "012345678901234567890123456789"}]),
     rstore_in_long(Len - 1, Domain, Tbl, [Fld1,Fld2,Fld3,Fld4]).
+
+store_long(0) -> ok;
+store_long(Len)  ->
+    hm_cli:store(Len, {Len+10, "0123456789", "012345678901234567890123456789"}),
+    store_long(Len-1).
+
 
 check_size() -> 
     % 64 nodes
