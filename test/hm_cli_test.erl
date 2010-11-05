@@ -123,6 +123,9 @@ test_perf(N) ->
         ]
     ).
 
+%
+% Functions for different query conditions
+%
 test_comp_get(R) ->
     F = 
         fun
@@ -140,17 +143,20 @@ test_comp_get(R) ->
         [
             {"starting....\n"},
             {"get   Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", get_cond, {1,1,1,R}},
-            {"cget  Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", cget_cond, {1,1,1,R}},
+            %{"cget  Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", cget_cond, {1,1,1,R}},
             {"rget  Between 1 and 1,    in ~p     OK....[~20.10f] sec\n", rget_cond, {1,1}, R},
             {"get   Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", get_cond, {1,10,1,R}},
-            {"cget  Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", cget_cond, {1,10,1,R}},
+            %{"cget  Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", cget_cond, {1,10,1,R}},
             {"rget  Between 1 and 10,   in ~p     OK....[~20.10f] sec\n", rget_cond, {1,10}, R},
             {"get   Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", get_cond, {1,100,1,R}},
-            {"cget  Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", cget_cond, {1,100,1,R}},
+            %{"cget  Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", cget_cond, {1,100,1,R}},
             {"rget  Between 1 and 100,  in ~p     OK....[~20.10f] sec\n", rget_cond, {1,100}, R},
             {"get   Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", get_cond, {1,500,1,R}},
-            {"cget  Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", cget_cond, {1,500,1,R}},
+            %{"cget  Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", cget_cond, {1,500,1,R}},
             {"rget  Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", rget_cond, {1,500}, R},
+            {"get   Between 1 and 1000,  in ~p     OK....[~20.10f] sec\n", get_cond, {1,1000,1,R}},
+            %{"cget  Between 1 and 500,  in ~p     OK....[~20.10f] sec\n", cget_cond, {1,500,1,R}},
+            {"rget  Between 1 and 1000,  in ~p     OK....[~20.10f] sec\n", rget_cond, {1,1000}, R},
             {"..end\n"}
         ]
     ).
@@ -423,6 +429,10 @@ rangeq_test5() ->
     lists:foreach(fun([M,N,_O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 
+
+%
+% Functions for thread tests
+%
 thread_test(List) ->
     {Time1, _} = timer:tc(?MODULE, thread_rget_test, [List]),
     io:format("[~20.10f] sec\n", [Time1/?microsec]),
@@ -434,7 +444,7 @@ thread_rget_test(List) ->
     global:register_name(thread_gather, spawn(?MODULE, thread_gather, [Ref, length(List), self(), 0])),
     spawn_all_rget_threads(List, thread_gather, Ref),
     receive
-        {ok, thread_done, Time} -> ok
+        {ok, thread_done, _Time} -> ok
     end.
 
 thread_get_test(List) ->
@@ -442,13 +452,13 @@ thread_get_test(List) ->
     global:register_name(thread_gather, spawn(?MODULE, thread_gather, [Ref, length(List), self(), 0])),
     spawn_all_get_threads(List, thread_gather, Ref),
     receive
-        {ok, thread_done, Time} -> ok
+        {ok, thread_done, _Time} -> ok
     end.
 
 thread_gather(_Ref, 0, Pid, Timeacc) -> Pid ! {ok, thread_done, Timeacc};
 thread_gather(Ref, N, Pid, Timeacc) ->
     receive
-        {ok, Ref, Node, Time} ->
+        {ok, Ref, _Node, Time} ->
             thread_gather(Ref, N-1, Pid, Timeacc + Time)
     end.
 
