@@ -20,6 +20,7 @@
         cstore/1,
         drop_table/0,
         get/1,
+        get/2,
         get_cond/1,
         get_node_name/0,
         rangeq_test0/0,
@@ -40,8 +41,10 @@
         test_comp_get/1,
         test_perf/1,
         thread_test/1,
+        thread_get_test/1,
         thread_rget_test/1,
-        thread_rget_gather/4,
+        thread_gather/4,
+        thread_get_solo/5,
         thread_rget_solo/5
         ]).
 -define(microsec, (1000*1000)).
@@ -189,6 +192,12 @@ store(Len) -> store_in(Len).
 cstore(Len) -> cstore_cache_in(Len).
 
 get(Len) -> get_in(Len).
+
+get(Start, End) when Start =:= End -> ok;
+get(Start, End) ->
+    hm_cli:get(Start),
+    get(Start+1, End).
+
 
 cget(Len) -> cget_in(Len).
 
@@ -415,25 +424,32 @@ rangeq_test5() ->
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 
 thread_test(List) ->
-    {Time, _} = timer:tc(?MODULE, thread_rget_test, [List]),
-    io:format("[~20.10f] sec\n", [Time/?microsec]).
+    {Time1, _} = timer:tc(?MODULE, thread_rget_test, [List]),
+    io:format("[~20.10f] sec\n", [Time1/?microsec]),
+    {Time2, _} = timer:tc(?MODULE, thread_get_test, [List]),
+    io:format("[~20.10f] sec\n", [Time2/?microsec]).
 
 thread_rget_test(List) ->
     Ref = make_ref(),
-    global:register_name(thread_rget_gather, spawn(?MODULE, thread_rget_gather, [Ref, length(List), self(), 0])),
-    spawn_all_rget_threads(List, thread_rget_gather, Ref),
+    global:register_name(thread_gather, spawn(?MODULE, thread_gather, [Ref, length(List), self(), 0])),
+    spawn_all_rget_threads(List, thread_gather, Ref),
     receive
-        {ok, thread_rget_done, Time} ->
-            io:format("Total Time: [~20.10f] sec\n", [Time/?microsec]),
-            ok
+        {ok, thread_done, Time} -> ok
     end.
 
-thread_rget_gather(_Ref, 0, Pid, Timeacc) -> Pid ! {ok, thread_rget_done, Timeacc};
-thread_rget_gather(Ref, N, Pid, Timeacc) ->
+thread_get_test(List) ->
+    Ref = make_ref(),
+    global:register_name(thread_gather, spawn(?MODULE, thread_gather, [Ref, length(List), self(), 0])),
+    spawn_all_get_threads(List, thread_gather, Ref),
+    receive
+        {ok, thread_done, Time} -> ok
+    end.
+
+thread_gather(_Ref, 0, Pid, Timeacc) -> Pid ! {ok, thread_done, Timeacc};
+thread_gather(Ref, N, Pid, Timeacc) ->
     receive
         {ok, Ref, Node, Time} ->
-            io:format("got ~p\n", [Node]),
-            thread_rget_gather(Ref, N-1, Pid, Timeacc + Time)
+            thread_gather(Ref, N-1, Pid, Timeacc + Time)
     end.
 
 spawn_all_rget_threads([], _Name, _Ref) -> ok;
@@ -444,9 +460,25 @@ spawn_all_rget_threads([{Node, Start, End} |List], Name, Ref) ->
 
 thread_rget_solo(Start, End, Name, Ref, Node) ->
     {Time, _} = timer:tc(?MODULE, rget, [Start, End]),
-    io:format("Node:[~p] Time:[~20.10f] sec\n", [Node, Time/?microsec]),
+    io:format("Node:[~p] rget Time:[~20.10f] sec\n", [Node, Time/?microsec]),
     global:send(Name, {ok, Ref, Node, Time}),
     ok.
+
+
+spawn_all_get_threads([], _Name, _Ref) -> ok;
+spawn_all_get_threads([{Node, Start, End} |List], Name, Ref) ->
+    spawn(Node, ?MODULE, thread_get_solo, [Start, End, Name, Ref, Node]),
+    spawn_all_get_threads(List, Name, Ref).
+
+
+thread_get_solo(Start, End, Name, Ref, Node) ->
+    {Time, _} = timer:tc(?MODULE, get, [Start, End]),
+    io:format("Node:[~p] get Time:[~20.10f] sec\n", [Node, Time/?microsec]),
+    global:send(Name, {ok, Ref, Node, Time}),
+    ok.
+
+
+
 
 
 
