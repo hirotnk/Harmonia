@@ -40,8 +40,9 @@
         test_comp_get/1,
         test_perf/1,
         thread_test/1,
-        spawn_all_rget_threads/1,
-        thread_rget_solo/3
+        thread_rget_test/1,
+        thread_rget_gather/4,
+        thread_rget_solo/5
         ]).
 -define(microsec, (1000*1000)).
 
@@ -413,22 +414,40 @@ rangeq_test5() ->
     lists:foreach(fun([M,N,_O]) -> ?assert((M =:= yyy) and (N =:= 150)) end, RowList7),
     io:format("[~p ~p ~p ~p]:ok~n",["case7",D,T,Q7]).
 
+thread_test(List) ->
+    {Time, _} = timer:tc(?MODULE, thread_rget_test, [List]),
+    io:format("[~20.10f] sec\n", [Time/?microsec]).
 
-thread_test([]) -> ok;
-thread_test([{Node, Start, End} | List]) ->
-    rpc:call(Node, ?MODULE, spawn_all_rget_threads, [{Node, Start, End}]),
-    thread_test(List).
+thread_rget_test(List) ->
+    Ref = make_ref(),
+    global:register_name(thread_rget_gather, spawn(?MODULE, thread_rget_gather, [Ref, length(List), self(), 0])),
+    spawn_all_rget_threads(List, thread_rget_gather, Ref),
+    receive
+        {ok, thread_rget_done, Time} ->
+            io:format("Total Time: [~20.10f] sec\n", [Time/?microsec]),
+            ok
+    end.
 
-spawn_all_rget_threads({Node, Start, End}) ->
-    spawn(?MODULE, thread_rget_solo, [Start, End, Node]).
+thread_rget_gather(_Ref, 0, Pid, Timeacc) -> Pid ! {ok, thread_rget_done, Timeacc};
+thread_rget_gather(Ref, N, Pid, Timeacc) ->
+    receive
+        {ok, Ref, Node, Time} ->
+            io:format("got ~p\n", [Node]),
+            thread_rget_gather(Ref, N-1, Pid, Timeacc + Time)
+    end.
 
-thread_rget_solo(Start, End, Node) ->
-    {ok, S} = file:open(atom_to_list(Node) ++ ".dat", write),
-    io:format(S, "~p : ~p~n", [now(), time()]),
+spawn_all_rget_threads([], _Name, _Ref) -> ok;
+spawn_all_rget_threads([{Node, Start, End} |List], Name, Ref) ->
+    spawn(Node, ?MODULE, thread_rget_solo, [Start, End, Name, Ref, Node]),
+    spawn_all_rget_threads(List, Name, Ref).
+
+
+thread_rget_solo(Start, End, Name, Ref, Node) ->
     {Time, _} = timer:tc(?MODULE, rget, [Start, End]),
-    io:format(S, "Node:[~p] Range:[~p to ~p] Time:[~20.10f] sec\n", [Node, Start, End, Time/?microsec]),
-    file:close(S),
+    io:format("Node:[~p] Time:[~20.10f] sec\n", [Node, Time/?microsec]),
+    global:send(Name, {ok, Ref, Node, Time}),
     ok.
+
 
 
 
