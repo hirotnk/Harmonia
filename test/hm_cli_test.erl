@@ -40,12 +40,19 @@
         test_all/1,
         test_comp_get/1,
         test_perf/1,
+        test_all_short/1,
+        test_all_long/1,
+        create_table_short/0,
+        create_table_long/0,
+        rstore_short/1,
+        rstore_long/1,
         thread_test/1,
         thread_get_test/1,
         thread_rget_test/1,
         thread_gather/4,
         thread_get_solo/5,
-        thread_rget_solo/5
+        thread_rget_solo/5,
+        check_size/0
         ]).
 -define(microsec, (1000*1000)).
 
@@ -122,6 +129,121 @@ test_perf(N) ->
             {"..end\n"}
         ]
     ).
+
+%
+% Functions for space complexity
+%
+test_all_short(N) ->
+    F = 
+        fun({Format, Mod, Func, K, Ret}) ->
+                Ret = Mod:Func(K),
+                io:format(Format, [K]);
+           ({Format, Func, K, _Ret}) ->
+                Func(K),
+                io:format(Format, [K]);
+           ({Format, Func, Ret}) when Ret =:= {ok, any} ->
+                case Func() of
+                    {ok, _} -> io:format(Format,["OK"]);
+                    Msg -> io:format(Format,[Msg])
+                end;
+           ({Format}) ->
+                io:format(Format)
+        end,
+    lists:foreach(F, 
+        [
+            {"starting....\n"},
+            {"create_table_short ~p....\n", fun create_table_short/0,  {ok, any}},
+            {"rstore_short(~p)     OK....\n", fun rstore_short/1,          N, ok},
+            {"..end\n"}
+        ]
+    ).
+
+test_all_long(N) ->
+    F = 
+        fun({Format, Mod, Func, K, Ret}) ->
+                Ret = Mod:Func(K),
+                io:format(Format, [K]);
+           ({Format, Func, K, _Ret}) ->
+                Func(K),
+                io:format(Format, [K]);
+           ({Format, Func, Ret}) when Ret =:= {ok, any} ->
+                case Func() of
+                    {ok, _} -> io:format(Format,["OK"]);
+                    Msg -> io:format(Format,[Msg])
+                end;
+           ({Format}) ->
+                io:format(Format)
+        end,
+    lists:foreach(F, 
+        [
+            {"starting....\n"},
+            {"create_table_long ~p....\n", fun create_table_long/0,  {ok, any}},
+            {"rstore_long(~p)     OK....\n", fun rstore_long/1,          N, ok},
+            {"..end\n"}
+        ]
+    ).
+
+create_table_short() ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    % int(key), char(30)
+    FldList = [{"Fld1",true,0},{"Fld2",false,""}],
+    hm_cli:create_table(Domain, Tbl, FldList).
+
+create_table_long() ->
+    Domain = "Domain1",
+    Tbl   = "Tbl2",
+    % int(key), int(key), char(10,key), char(30)
+    FldList = [{"Fld1",true,0},{"Fld2",true,0},{"Fld3",true,""},{"Fld4",false,""}],
+    hm_cli:create_table(Domain, Tbl, FldList).
+
+rstore_short(Len) ->
+    FldList = [{"Fld1",true,0},{"Fld2",false,""}],
+    rstore_in_short(Len, "Domain1", "Tbl2", FldList).
+
+rstore_in_short(0, _Domain, _Tbl, [_,_]) -> ok;
+rstore_in_short(Len, Domain, Tbl, [Fld1,Fld2]) ->
+    hm_cli:rstore(Domain, Tbl, [{Fld1, Len},{Fld2, "012345678901234567890123456789"}]),
+    rstore_in_short(Len - 1, Domain, Tbl, [Fld1,Fld2]).
+
+
+rstore_long(Len) ->
+    FldList = [{"Fld1",true,0},{"Fld2",true,0},{"Fld3",true,""},{"Fld4",false,""}],
+    rstore_in_long(Len, "Domain1", "Tbl2", FldList).
+
+rstore_in_long(0, _Domain, _Tbl, [_,_,_,_]) -> ok;
+rstore_in_long(Len, Domain, Tbl, [Fld1,Fld2,Fld3,Fld4]) ->
+    hm_cli:rstore(Domain, Tbl, [{Fld1, Len},
+                                {Fld2, Len+10},
+                                {Fld3, "0123456789"},
+                                {Fld4, "012345678901234567890123456789"}]),
+    rstore_in_long(Len - 1, Domain, Tbl, [Fld1,Fld2,Fld3,Fld4]).
+
+check_size() -> 
+    % 64 nodes
+    NodeList = [
+netlab31, netlab32, netlab33, netlab34, netlab35,
+netlab36, netlab37, netlab38, netlab39, netlab310,
+netlab311, netlab312, netlab313, netlab314, netlab315,
+netlab316, netlab317, netlab318, netlab319, netlab320,
+netlab41, netlab42, netlab43, netlab44, netlab45,
+netlab46, netlab47, netlab48, netlab49, netlab410,
+netlab411, netlab412, netlab413, netlab414, netlab415,
+netlab416, netlab417, netlab418, netlab419, netlab420,
+dell1, dell2, dell3, dell4, dell5, dell6, dell7,
+dell8, netlaba1, netlaba2, netlaba3, netlaba4,
+netlaba5, netlaba6, netlaba7, netlaba8, netlabb1,
+netlabb2, netlabb3, netlabb4, netlabb5, netlabb6,
+netlabb7, netlabb8],
+    {ok, S} = file:open("data_size.dat", write),
+    check_size_in(NodeList, S).
+
+check_size_in([], S) -> file:close(S);
+check_size_in([Node | NodeList],S) ->
+    Dat = rpc:call(Node, ets, i, []),
+    io:format(S, "~p\n", [Dat]),
+    check_size_in(NodeList, S).
+
 
 %
 % Functions for different query conditions
