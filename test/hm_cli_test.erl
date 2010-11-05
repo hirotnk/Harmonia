@@ -198,7 +198,7 @@ create_table_long() ->
     hm_cli:create_table(Domain, Tbl, FldList).
 
 rstore_short(Len) ->
-    FldList = [{"Fld1",true,0},{"Fld2",false,""}],
+    FldList = ["Fld1","Fld2"],
     rstore_in_short(Len, "Domain1", "Tbl2", FldList).
 
 rstore_in_short(0, _Domain, _Tbl, [_,_]) -> ok;
@@ -208,7 +208,7 @@ rstore_in_short(Len, Domain, Tbl, [Fld1,Fld2]) ->
 
 
 rstore_long(Len) ->
-    FldList = [{"Fld1",true,0},{"Fld2",true,0},{"Fld3",true,""},{"Fld4",false,""}],
+    FldList = ["Fld1","Fld2","Fld3","Fld4"],
     rstore_in_long(Len, "Domain1", "Tbl2", FldList).
 
 rstore_in_long(0, _Domain, _Tbl, [_,_,_,_]) -> ok;
@@ -222,24 +222,34 @@ rstore_in_long(Len, Domain, Tbl, [Fld1,Fld2,Fld3,Fld4]) ->
 check_size() -> 
     % 64 nodes
     NodeList = [
-netlab31, netlab32, netlab33, netlab34, netlab35,
-netlab36, netlab37, netlab38, netlab39, netlab310,
-netlab311, netlab312, netlab313, netlab314, netlab315,
-netlab316, netlab317, netlab318, netlab319, netlab320,
-netlab41, netlab42, netlab43, netlab44, netlab45,
-netlab46, netlab47, netlab48, netlab49, netlab410,
-netlab411, netlab412, netlab413, netlab414, netlab415,
-netlab416, netlab417, netlab418, netlab419, netlab420,
-dell1, dell2, dell3, dell4, dell5, dell6, dell7,
-dell8, netlaba1, netlaba2, netlaba3, netlaba4,
-netlaba5, netlaba6, netlaba7, netlaba8, netlabb1,
-netlabb2, netlabb3, netlabb4, netlabb5, netlabb6,
-netlabb7, netlabb8],
+netlab31@netlab3, netlab32@netlab3, netlab33@netlab3,
+netlab34@netlab3, netlab35@netlab3, netlab36@netlab3,
+netlab37@netlab3, netlab38@netlab3, netlab39@netlab3,
+netlab310@netlab3, netlab311@netlab3, netlab312@netlab3,
+netlab313@netlab3, netlab314@netlab3, netlab315@netlab3,
+netlab316@netlab3, netlab317@netlab3, netlab318@netlab3,
+netlab319@netlab3, netlab320@netlab3, netlab41@netlab4,
+netlab42@netlab4, netlab43@netlab4, netlab44@netlab4,
+netlab45@netlab4, netlab46@netlab4, netlab47@netlab4,
+netlab48@netlab4, netlab49@netlab4, netlab410@netlab4,
+netlab411@netlab4, netlab412@netlab4, netlab413@netlab4,
+netlab414@netlab4, netlab415@netlab4, netlab416@netlab4,
+netlab417@netlab4, netlab418@netlab4, netlab419@netlab4,
+netlab420@netlab4, dell1@dell, dell2@dell,
+dell3@dell, dell4@dell, dell5@dell, dell6@dell,
+dell7@dell, dell8@dell, netlaba1@netlaba,
+netlaba2@netlaba, netlaba3@netlaba, netlaba4@netlaba,
+netlaba5@netlaba, netlaba6@netlaba, netlaba7@netlaba,
+netlaba8@netlaba, netlabb1@netlabb, netlabb2@netlabb,
+netlabb3@netlabb, netlabb4@netlabb, netlabb5@netlabb,
+netlabb6@netlabb, netlabb7@netlabb, netlabb8@netlabb],
+
     {ok, S} = file:open("data_size.dat", write),
     check_size_in(NodeList, S).
 
 check_size_in([], S) -> file:close(S);
 check_size_in([Node | NodeList],S) ->
+    io:format("====== ~p ======\n", [Node]),
     Dat = rpc:call(Node, ets, i, []),
     io:format(S, "~p\n", [Dat]),
     check_size_in(NodeList, S).
