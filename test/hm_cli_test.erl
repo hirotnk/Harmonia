@@ -54,7 +54,8 @@
         thread_gather/4,
         thread_get_solo/5,
         thread_rget_solo/5,
-        check_size/0
+        check_size/0,
+        check_data_num/0
         ]).
 -define(microsec, (1000*1000)).
 
@@ -133,7 +134,22 @@ test_perf(N) ->
     ).
 
 %
-% Functions for space complexity
+% Functions for load balancing tests
+%
+check_data_num() ->
+    {ok, NodeList} = hm_cli:get_node_names(),
+    disp_each_node(NodeList).
+
+disp_each_node([]) -> ok;
+disp_each_node([Node | NodeList]) ->
+    {Name, SName} = Node,
+    {ok, N} = hm_cli:get_data_count(Name),
+    io:format("Name:~p Node:~p count:~p\n", [Name, SName, N]),
+    disp_each_node(NodeList).
+
+
+%
+% Functions for space complexity tests
 %
 test_all_short(N) ->
     F = 
