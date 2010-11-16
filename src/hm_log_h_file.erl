@@ -36,7 +36,7 @@
 %%%===================================================================
 add() ->
     FileName = hm_misc:make_log_file_name(),
-    io:format("~p~n", [FileName]),
+    %io:format("~p~n", [FileName]),
     hm_event_mgr:add_handler(?MODULE, list_to_atom(FileName)).
 
 delete() ->
@@ -56,6 +56,7 @@ delete() ->
 %% @end
 %%--------------------------------------------------------------------
 init(Filename) ->
+    %io:format("~p~n", [Filename]),
     {ok, Fd} = file:open(Filename, [write]), % truncate if exits
     {ok, {Fd, Filename}}.
 

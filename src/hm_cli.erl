@@ -189,7 +189,7 @@ get_data_count(Name) ->
 %%%===================================================================
 log_start_in([]) -> ok;
 log_start_in([{_Name, NodeName}|NodeList]) ->
-    Res = rpc:call(NodeName, hm_event_mgr, add_file_handler, []),
+    Res = rpc:call(NodeName, hm_log_h_file, add, []),
     io:format("log start:[~p] Result:[~p]\n", [NodeName, Res]),
     log_start_in(NodeList).
 
