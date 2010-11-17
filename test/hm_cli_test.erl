@@ -672,7 +672,8 @@ cstore_cache_in(Len) when is_integer(Len) ->
 
 get_in(0) -> ok;
 get_in(Len) ->
-    hm_cli:get(Len),
+    Val = Len + 100,
+    {ok, [{Len, Val}]} = hm_cli:get(Len),
     get_in(Len-1).
 
 cget_in(0) -> ok;
