@@ -17,6 +17,7 @@ PATH= .:$(ERLHOME)/bin:/bin:/usr/bin:/usr/local/bin:/usr/local/bin
 SOURCE = hm_cli_test.erl \
 	hm_cache_test.erl \
 	hm_test.erl \
+	hm_cli_demo.erl \
 	hm_qp_test.erl
 
 TARGETS = $(SOURCE:%.erl=$(EBIN)/%.beam)

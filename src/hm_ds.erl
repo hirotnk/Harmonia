@@ -281,9 +281,11 @@ handle_call({store, TableName, Key, Value}, _From, {RegName, TableList, Cnt}) ->
             {reply, {error, {store, no_table_found}}, {RegName, TableList, Cnt}};
         true ->
             Ret = (catch ets:insert(TableName, {Key, Value})),
-            case Ret of
-                true ->
+            case {Ret, TableName} of
+                {true, ?hm_global_table} -> % counts data only if it's data
                     {reply, {ok, insert}, {RegName, TableList, Cnt + 1}};
+                {true, DataTable} ->        % no count for index data
+                    {reply, {ok, insert}, {RegName, TableList, Cnt}};
                 Any ->
                     {reply, 
                      {error, {store, exception, TableName, {Key, Value}, Any}}, 

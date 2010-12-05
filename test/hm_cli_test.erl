@@ -138,14 +138,15 @@ test_perf(N) ->
 %
 check_data_num() ->
     {ok, NodeList} = hm_cli:get_node_names(),
-    disp_each_node(NodeList).
+    {ok, Cnt} = disp_each_node(NodeList, 0),
+    io:format("Data Cnt Total:~p\n", [Cnt]).
 
-disp_each_node([]) -> ok;
-disp_each_node([Node | NodeList]) ->
+disp_each_node([], Cnt) -> {ok, Cnt};
+disp_each_node([Node | NodeList], Cnt) ->
     {Name, SName} = Node,
     {ok, N} = hm_cli:get_data_count(Name),
     io:format("Name:~p Node:~p count:~p\n", [Name, SName, N]),
-    disp_each_node(NodeList).
+    disp_each_node(NodeList, Cnt + N).
 
 
 %
@@ -363,7 +364,8 @@ get(Len) -> get_in(Len).
 
 get(Start, End) when Start =:= End -> ok;
 get(Start, End) ->
-    hm_cli:get(Start),
+    Ret = hm_cli:get(Start),
+    io:format("~p~n", [Ret]),
     get(Start+1, End).
 
 
