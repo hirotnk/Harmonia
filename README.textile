@@ -29,32 +29,24 @@ stops 5 virtual nodes on local machine:
 Harmonia API example
 
 create table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
-<pre>
-    7> hm_table:create_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).
-</pre>
+<pre>7> hm_table:create_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).</pre>
 
 Retrieve table property
-<pre>
-    8> hm_table:get_table_info("Domain1", "Tbl1").
-    {ok,36885,[{"Fld1",true,0},{"Fld2",false,[]}]}
-</pre>
+<pre>8> hm_table:get_table_info("Domain1", "Tbl1").
+{ok,36885,[{"Fld1",true,0},{"Fld2",false,[]}]}</pre>
 
 
 store data to Tbl1 in Domain1
-<pre>
-    9> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1},{"Fld2", value1}]).
-    {ok,4}
-    10> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 100},{"Fld2", value2}]).
-    {ok,4}
-    11> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1000},{"Fld2", value3}]).
-    {ok,4}
-</pre>
+<pre>9> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1},{"Fld2", value1}]).
+{ok,4}
+10> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 100},{"Fld2", value2}]).
+{ok,4}
+11> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1000},{"Fld2", value3}]).
+{ok,4}</pre>
 
 get data from Tbl1 in Domain1 with query condition Fld1 > 999
-<pre>
-    12> hm_cli:rget("Domain1", "Tbl1", "Fld1 > 999").
-    {ok,[['Domain1Tbl1',1000,value3]]}
-</pre>
+<pre>12> hm_cli:rget("Domain1", "Tbl1", "Fld1 > 999").
+{ok,[['Domain1Tbl1',1000,value3]]}</pre>
 
 
 h2. Algorithm
