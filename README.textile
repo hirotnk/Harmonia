@@ -2,15 +2,35 @@ h2. About Harmonia
 
 Harmonia is a distributed storage engine based on Chord DHT algorithm.
 It provides range query function over DHT storage layer.
+It stores data with replication.
 
 N.B.
 Now, it is in alpha quality.
 
 h2. Building and Installing 
 
-TBD.
+Download, extract, and make
 
 h2. Example
+
+Harmonia quick execution
+
+starts 5 virtual nodes on local machine:
+<pre>
+./test/test5.sh -s
+</pre>
+
+Then add a new virtual node to issue client commands:
+<pre>
+erl -pa ebin -config harmonia -run hm_edge start -harmonia node_type 'join' name xxx sname 'xxx_node@ubu' root_node 'node_foo@ubu' -setcookie harmonia_cookie -sname 'xxx_node@ubu'
+</pre>
+
+stops 5 virtual nodes on local machine:
+<pre>
+./test/test5.sh -q
+</pre>
+
+
 
 Harmonia Command
 
@@ -123,5 +143,5 @@ Written by Yoshihiro TANAKA <hirotnkg@gmail.com>
 h2. License
 
 Apache 2.0 License
-http://www.apache.org/licenses/
+"http://www.apache.org/licenses/":http://www.apache.org/licenses/
 
