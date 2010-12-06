@@ -11,9 +11,7 @@ h2. Building and Installing
 
 Download, extract, and make
 
-h2. Example
-
-Harmonia quick execution
+h2. Harmonia quick execution
 
 starts 5 virtual nodes on local machine:
 <pre>./test/test5.sh -s</pre>
@@ -25,8 +23,7 @@ stops 5 virtual nodes on local machine:
 <pre>./test/test5.sh -q</pre>
 
 
-
-Harmonia API example
+h2. Harmonia API example
 
 create table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
 <pre>7> hm_table:create_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).</pre>
