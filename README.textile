@@ -122,5 +122,6 @@ Written by Yoshihiro TANAKA <hirotnkg@gmail.com>
 
 h2. License
 
-TBD
+Apache 2.0 License
+http://www.apache.org/licenses/
 
