@@ -26,94 +26,36 @@ stops 5 virtual nodes on local machine:
 
 
 
-Harmonia Command
-
-<pre>
-Usage(start):hm -t [create|join -r root_name -w root_node@node] -n name -s sname@node [-c cookievalue]
-Usage(stop ):hm -q -w root_node@node -s sname@node [-c cookievalue]
-</pre>
-
-Start each node with name foo, bar, etc.
-
-<pre>
-    hiro@ubu:~$ scripts/hm -t create -n foo -s node_foo@ubu -d
-    hiro@ubu:~$ scripts/hm -t join -r foo -n bar  -s node_bar@ubu -w node_foo@ubu -d
-    hiro@ubu:~$ scripts/hm -t join -r foo -n hoge -s node_hoge@ubu -w node_foo@ubu -d
-    hiro@ubu:~$ scripts/hm -t join -r foo -n cat  -s node_cat@ubu -w node_foo@ubu -d
-    hiro@ubu:~$ scripts/hm -t join -r foo -n dog  -s node_dog@ubu -w node_foo@ubu -d
-</pre>
-
-Stop Harmonia
-
-<pre>
-    hiro@ubu:~$ scripts/hm -q -w node_foo@ubu -s stop_test@ubu -d
-</pre>
+Harmonia API example
 
 create table as domain name is Domain1, table name is Tbl1, field names Fld1 and Fld2, etc, it returns node name on which table and its replicas were created. 
-
 <pre>
     7> hm_table:create_table("Domain1", "Tbl1", [{"Fld1",true,true},{"Fld2",false, []}]).
 </pre>
 
 Retrieve table property
-
 <pre>
     8> hm_table:get_table_info("Domain1", "Tbl1").
-    {ok,36885,[{"Fld1",true,true},{"Fld2",false,[]}]}
+    {ok,36885,[{"Fld1",true,0},{"Fld2",false,[]}]}
 </pre>
 
 
 store data to Tbl1 in Domain1
-
 <pre>
-    9> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", key1},{"Fld2", value1}]).
+    9> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1},{"Fld2", value1}]).
     {ok,4}
-    10> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", key2},{"Fld2", value2}]).
+    10> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 100},{"Fld2", value2}]).
     {ok,4}
-    11> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", key3},{"Fld2", value3}]).
+    11> hm_cli:rstore("Domain1", "Tbl1", [{"Fld1", 1000},{"Fld2", value3}]).
     {ok,4}
 </pre>
 
-get data from Tbl1 in Domain1 with query condition Fld1 == key2
-
+get data from Tbl1 in Domain1 with query condition Fld1 > 999
 <pre>
-    12> hm_cli:rget("Domain1", "Tbl1", "Fld1 == key2").
-    {ok,[['Domain1Tbl1',key2,value2]]}
+    12> hm_cli:rget("Domain1", "Tbl1", "Fld1 > 999").
+    {ok,[['Domain1Tbl1',1000,value3]]}
 </pre>
 
-
-Another example of making table
-
-<pre>
-    13> hm_cli:create_table("Domain1", "Tbl2", [{"Fld1",true,true},{"Fld2",true,true},{"Fld3",false,nil}]).
-    {ok,{[{harmonia_cat,instance},
-          {harmonia_dog,238},
-          {harmonia_foo,95},
-          {harmonia_hoge,196},
-          {harmonia_bar,106}],
-         []}}
-</pre>
-Another example of store data
-
-<pre>
-    15> hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", xxx},{"Fld2", 32},{"Fld3", textfile1}]).
-    {ok,5}
-    16> hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", yyy},{"Fld2", 150},{"Fld3", textfile1}]).
-    {ok,5}
-    17> hm_cli:rstore("Domain1", "Tbl2", [{"Fld1", zzz},{"Fld2", 3000},{"Fld3", textfile1}]).
-    {ok,5}
-</pre>
-
-Another example of get data with range query
-
-<pre>
-    18> hm_cli:rget("Domain1", "Tbl2", "Fld1 == yyy or Fld2 == 32").
-    {ok,[['Domain1Tbl2',xxx,32,textfile1],
-         ['Domain1Tbl2',yyy,150,textfile1]]}
-    19> hm_cli:rget("Domain1", "Tbl2", "Fld1 == yyy and Fld2 == 150").
-    {ok,[['Domain1Tbl2',yyy,150,textfile1]]}
-    20> 
-</pre>
 
 h2. Algorithm
 
