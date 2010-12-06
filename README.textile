@@ -16,19 +16,13 @@ h2. Example
 Harmonia quick execution
 
 starts 5 virtual nodes on local machine:
-<pre>
-./test/test5.sh -s
-</pre>
+<pre>./test/test5.sh -s</pre>
 
 Then add a new virtual node to issue client commands:
-<pre>
-erl -pa ebin -config harmonia -run hm_edge start -harmonia node_type 'join' name xxx sname 'xxx_node@ubu' root_node 'node_foo@ubu' -setcookie harmonia_cookie -sname 'xxx_node@ubu'
-</pre>
+<pre>erl -pa ebin -config harmonia -run hm_edge start -harmonia node_type 'join' name xxx sname 'xxx_node@ubu' root_node 'node_foo@ubu' -setcookie harmonia_cookie -sname 'xxx_node@ubu'</pre>
 
 stops 5 virtual nodes on local machine:
-<pre>
-./test/test5.sh -q
-</pre>
+<pre>./test/test5.sh -q</pre>
 
 
 
