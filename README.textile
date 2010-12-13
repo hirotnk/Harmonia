@@ -7,6 +7,8 @@ It stores data with replication.
 N.B.
 Now, it is in alpha quality.
 
+Paper: "dissertation paper on Harmonia":https://github.com/hirotnk/Harmonia/blob/master/doc/Dissertation_Harmonia_12_2010.pdf
+
 h2. Building and Installing 
 
 Download, extract, and make
