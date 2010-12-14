@@ -13,7 +13,7 @@
 -module(hm_cli_demo).
 -author('Yoshihiro TANAKA <hirotnkg@gmail.com>').
 -export([
-        count_all/2,
+        count_all/1,
         count_num/2,
         create_table8/1,
         rstore_dist_test_all/3,
