@@ -31,7 +31,7 @@ create_table8(0) -> ok;
 create_table8(N) ->
     Tbl   = "Tbl" ++ integer_to_list(N),
     % int(key), int(key), char(10,key), char(30)
-    FldList = [{"Fld1",true,0},{"Fld2",true,0},{"Fld3",true,""}],
+    FldList = [{"Fld1",true,0},{"Fld2",true,0},{"Fld3",false,""}],
     hm_cli:create_table(?domain, Tbl, FldList),
     create_table8(N-1).
 
