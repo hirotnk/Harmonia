@@ -143,7 +143,7 @@ connect_node_in(Node, Cnt) ->
             connect_node_in(Node, Cnt - 1);
         ignored -> {error, localnode_not_alive}
     end.
-
+%% testing branch..
 %% start_hm_name() -> 
 %%     supervisor:start_child(?NAME_SUP, child(?NAME_SUP,
 %%                                             ?NAME_SUP,
